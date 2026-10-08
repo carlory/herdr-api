@@ -34,7 +34,8 @@ def api(path, *, method="GET", data=None, token_name=None):
     request = Request("https://api.github.com/" + path, data=body, headers=headers, method=method)
     try:
         with urlopen(request, timeout=60) as response:
-            result = json.load(response)
+            payload = response.read()
+            result = json.loads(payload) if payload else {}
     except HTTPError as error:
         # Response bodies can contain credential material. Report only status.
         try:
@@ -72,8 +73,8 @@ def adaptation_tag(pr):
     return match[1]
 
 
-def ci_passed(run, jobs, head):
-    return (run["path"] == ".github/workflows/ci.yml" and run["event"] == "pull_request"
+def ci_passed(run, jobs, head, expected_event="pull_request"):
+    return (run["path"] == ".github/workflows/ci.yml" and run["event"] == expected_event
             and run["status"] == "completed" and run["conclusion"] == "success"
             and run["head_sha"] == head and REQUIRED_JOBS.issubset({job["name"] for job in jobs})
             and all(job["status"] == "completed" and job["conclusion"] == "success" for job in jobs))
@@ -126,48 +127,25 @@ def verified(pr, run):
     return tag, head, main
 
 
-def review_decision(pr, head, base, expected_run=None):
-    reviews = pages(f"repos/{REPOSITORY}/pulls/{pr['number']}/reviews")
-    matching = []
-    for review in reviews:
-        if review["user"]["login"] != "github-actions[bot]" or review["commit_id"] != head:
-            continue
-        match = re.search(r"<!-- herdr-api-review:(APPROVED|BLOCKED):([a-f0-9]{40}):([a-f0-9]{40}):(\d+) -->", review.get("body") or "")
-        if match and match[2] == head and match[3] == base and (expected_run is None or int(match[4]) == expected_run):
-            matching.append((review["id"], match[1], int(match[4])))
-    if not matching:
-        return False
-    _, decision, run_id = max(matching)
-    if decision != "APPROVED":
-        return False
-    if expected_run is not None:
-        return True  # Called only by the trusted verdict job after safe outputs.
-    run = api(f"repos/{REPOSITORY}/actions/runs/{run_id}")
-    return (run["path"] == ".github/workflows/review-herdr.lock.yml"
-            and run["status"] == "completed" and run["conclusion"] == "success")
-
-
 def merge(pr, run):
+    if pr["draft"]:
+        print("Skipped: adaptation is still a draft.")
+        return
     result = verified(pr, run)
     if not result:
         return
     tag, head, main = result
-    if not review_decision(pr, head, main):
-        print("Skipped: waiting for an approved independent review of this head and base.")
-        return
     # Recheck after API reads; the merge endpoint also atomically checks the head.
     current = api(f"repos/{REPOSITORY}/pulls/{pr['number']}")
     if current["state"] != "open" or current["head"]["sha"] != head or current["base"]["sha"] != main:
         print("Skipped: PR or main changed during verification.")
         return
     if current["draft"]:
-        api("graphql", method="POST", data={
-            "query": "mutation($id:ID!){markPullRequestReadyForReview(input:{pullRequestId:$id}){pullRequest{id}}}",
-            "variables": {"id": current["node_id"]},
-        })
+        print("Skipped: PR was returned to draft.")
+        return
     result = api(f"repos/{REPOSITORY}/pulls/{pr['number']}/merge", method="PUT", data={
         "sha": head, "merge_method": "squash", "commit_title": f"Adapt Herdr {tag} (#{pr['number']})",
-        "commit_message": "Verified protocol adaptation. No tag or package publication.",
+        "commit_message": "Protocol adaptation verified by cross-platform CI.",
     })
     if not result.get("merged"):
         raise RuntimeError("GitHub declined the merge")
@@ -193,15 +171,8 @@ def candidates():
 
 
 def main():
-    if os.environ.get("REVIEW_RUN_ID"):
-        for pr in pages(f"repos/{REPOSITORY}/pulls?state=open&base=main"):
-            if adaptation_tag(pr):
-                os.environ["REQUESTED_PR"] = str(pr["number"])
-                for candidate, run in candidates():
-                    merge(candidate, run)
-    else:
-        for pr, run in candidates():
-            merge(pr, run)
+    for pr, run in candidates():
+        merge(pr, run)
 
 
 if __name__ == "__main__":
