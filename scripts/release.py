@@ -166,10 +166,13 @@ def request(url: str, *, method="GET", data=None, token=None, content_type="appl
         with urlopen(Request(url, headers=headers, method=method, data=data), timeout=60) as response:
             return json.load(response)
     except HTTPError as error:
-        if missing_ok and error.code == 404:
-            return None
-        # Do not expose response bodies or authorization headers in CI logs.
-        raise RuntimeError(f"{method} {urlparse(url).hostname}: HTTP {error.code}") from None
+        try:
+            if missing_ok and error.code == 404:
+                return None
+            # Do not expose response bodies or authorization headers in CI logs.
+            raise RuntimeError(f"{method} {urlparse(url).hostname}: HTTP {error.code}") from None
+        finally:
+            error.close()
 
 
 def registry(dist: Path, wait: int = 0) -> bool:
