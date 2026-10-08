@@ -1,6 +1,6 @@
 # herdr-api
 
-Unofficial Rust protocol types for **Herdr 0.9.2**, maintained independently by
+Unofficial Rust protocol types for **Herdr 0.9.3**, maintained independently by
 carlory. This crate mirrors the JSON protocol shipped in that release: protocol
 22, schema document version 1.
 
@@ -117,5 +117,5 @@ an explicit versioning policy before publication.
 ## License
 
 Apache-2.0. Protocol definitions and adapted tests originate from
-[herdrdev/herdr](https://github.com/herdrdev/herdr/tree/v0.9.2).
+[herdrdev/herdr](https://github.com/herdrdev/herdr/tree/v0.9.3).
 See [LICENSE](LICENSE) and [NOTICE](NOTICE).

@@ -1,6 +1,6 @@
-# Extraction from Herdr v0.9.2
+# Extraction from Herdr v0.9.3
 
-Source commit: `48292af8e33a08c8030b7f1512c8d0da739f5ab1`.
+Source commit: `7b116c05bfda646af39d2524c54e70c751f57ee8`.
 
 The source `src/api/schema.rs` becomes `src/lib.rs`. Its protocol submodules are
 copied to `src/` with their original names. Rustfmt may change formatting.

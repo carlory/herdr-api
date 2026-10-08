@@ -6,7 +6,7 @@ Implementing or rehearsing this workflow does not authorize an actual release.
 ## Version policy
 
 The crate version and tag mirror the pinned stable Herdr release exactly:
-`Cargo.toml` version `0.9.2` corresponds to tag `v0.9.2` and Herdr `v0.9.2`.
+`Cargo.toml` version `0.9.3` corresponds to tag `v0.9.3` and Herdr `v0.9.3`.
 Preflight checks also enforce the lockfile version and the library's Herdr,
 protocol, and Schema version constants. Release commits must belong to `main`.
 
@@ -20,7 +20,7 @@ require an explicit version policy decision; this workflow does not invent one.
 From a clean, committed checkout on `main`, run:
 
 ```sh
-gh workflow run release.yml --repo carlory/herdr-api --ref main -f tag=v0.9.2
+gh workflow run release.yml --repo carlory/herdr-api --ref main -f tag=v0.9.3
 ```
 
 Or select **Actions > Release > Run workflow** in GitHub. Manual runs are always
@@ -32,7 +32,7 @@ Herdr itself is never built from source.
 The workflow performs `cargo publish --locked --dry-run` and produces a
 `release-candidate` Actions artifact containing:
 
-- `herdr-api-0.9.2.crate`, verified by building Cargo's packaged source.
+- `herdr-api-0.9.3.crate`, verified by building Cargo's packaged source.
 - `upstream.schema.json` and `extracted.schema.json`, from the successful Linux job.
 - `upstream.toml`, including upstream source and release asset fingerprints.
 - `release.json`, recording the crate version, source commit, and upstream metadata.
@@ -65,8 +65,8 @@ an annotated tag on that exact reviewed commit. These commands **trigger actual
 publication** when the tag is pushed; they are not part of rehearsal:
 
 ```sh
-git tag -a v0.9.2 <reviewed-full-commit-SHA> -m 'herdr-api v0.9.2'
-git push origin refs/tags/v0.9.2
+git tag -a v0.9.3 <reviewed-full-commit-SHA> -m 'herdr-api v0.9.3'
+git push origin refs/tags/v0.9.3
 ```
 
 The `Release` workflow runs in this order:
@@ -86,7 +86,7 @@ After publication, consumers can use:
 
 ```toml
 [dependencies]
-herdr-api = "=0.9.2"
+herdr-api = "=0.9.3"
 ```
 
 ## Recover an interrupted release
