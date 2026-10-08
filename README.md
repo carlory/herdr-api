@@ -8,14 +8,13 @@ The crate includes requests, success and error responses, lifecycle events,
 subscription events, and their referenced data types. It includes no socket
 client, CLI wrapper, terminal protocol, or Herdr runtime.
 
-## Usage before a release
+## Usage
 
-No tag, GitHub Release, or crates.io package has been published. Pin a reviewed
-Git commit when consuming this repository:
+Use the published crate version matching your Herdr release:
 
 ```toml
 [dependencies]
-herdr-api = { git = "https://github.com/carlory/herdr-api", rev = "<full commit SHA>" }
+herdr-api = "=0.9.3"
 serde_json = "1"
 ```
 
