@@ -63,7 +63,10 @@ jobs:
       - name: Rehearse crates.io publication without uploading
         env:
           CARGO_TARGET_DIR: ${{ runner.temp }}/herdr-api-package
-        run: cargo publish --locked --dry-run
+        run: |
+          cargo publish --locked --dry-run
+          # publish --dry-run verifies a temporary archive; package persists it.
+          cargo package --locked
       - name: Prepare package, schemas, provenance, notes, and checksums
         env:
           RELEASE_TAG: ${{ needs.preflight.outputs.tag }}
