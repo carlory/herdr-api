@@ -1,4 +1,4 @@
-//! Protocol types extracted from Herdr v0.9.3.
+//! Protocol types extracted from Herdr v0.9.2.
 //!
 //! No socket client or Herdr runtime is included.
 
@@ -261,7 +261,7 @@ pub mod support;
 pub use support::*;
 
 /// Herdr release whose JSON protocol these types mirror.
-pub const HERDR_VERSION: &str = "0.9.3";
+pub const HERDR_VERSION: &str = "0.9.2";
 /// Socket protocol version bundled with that release.
 pub const PROTOCOL_VERSION: u32 = 22;
 /// Official schema document format version.

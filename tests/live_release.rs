@@ -188,7 +188,7 @@ fn official_release_responses_socket_events_and_hook_events_decode() {
     )
     .unwrap();
     std::fs::write(plugin.join("herdr-plugin.toml"), format!(
-        "id = \"test.herdr-api\"\nname = \"Protocol test\"\nversion = \"0.1.0\"\nmin_herdr_version = \"0.9.3\"\nplatforms = [\"linux\", \"macos\"]\n[[events]]\non = \"worktree.created\"\ncommand = [\"sh\", {}, {}]\n",
+        "id = \"test.herdr-api\"\nname = \"Protocol test\"\nversion = \"0.1.0\"\nmin_herdr_version = \"0.9.2\"\nplatforms = [\"linux\", \"macos\"]\n[[events]]\non = \"worktree.created\"\ncommand = [\"sh\", {}, {}]\n",
         serde_json::to_string(&script.to_string_lossy()).unwrap(),
         serde_json::to_string(&capture.to_string_lossy()).unwrap(),
     )).unwrap();

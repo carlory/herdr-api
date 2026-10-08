@@ -1,4 +1,4 @@
-// Adapted from Herdr v0.9.3 src/api/schema/tests.rs; Apache-2.0.
+// Adapted from Herdr v0.9.2 src/api/schema/tests.rs; Apache-2.0.
 use herdr_api::*;
 use std::collections::HashMap;
 
