@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Store dedicated credentials with hidden input and run the adaptation test."""
+"""Store one dedicated token in both secrets and run the adaptation test."""
 
 import getpass
 import json
@@ -25,16 +25,15 @@ def store_secret(name: str, token: str) -> None:
 
 def main() -> None:
     subprocess.run(["gh", "auth", "status"], check=True, capture_output=True)
-    print("Configure dedicated tokens for carlory/herdr-api; input will be hidden.")
-    print("COPILOT_GITHUB_TOKEN: personal owner, Copilot Requests Read.")
-    print("GH_AW_CI_TRIGGER_TOKEN: only herdr-api, Contents and Pull requests Read/Write.")
-    for name in SECRETS:
-        token = getpass.getpass(f"{name}: ")
-        try:
+    print("Configure one dedicated fine-grained token; input will be hidden.")
+    print("Personal owner, Copilot Requests Read; only herdr-api, Contents and Pull requests Read/Write.")
+    token = getpass.getpass("Herdr adaptation token: ")
+    try:
+        for name in SECRETS:
             store_secret(name, token)
-        finally:
-            token = None
-        print(f"Stored {name}.")
+            print(f"Stored {name}.")
+    finally:
+        token = None
     result = subprocess.run(
         ["gh", "secret", "list", "--repo", REPOSITORY, "--json", "name"],
         check=True, text=True, capture_output=True,
