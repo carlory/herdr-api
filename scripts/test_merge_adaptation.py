@@ -9,7 +9,7 @@ import merge_adaptation as merge
 
 def pull_request():
     return {
-        "number": 3, "state": "open", "draft": True, "node_id": "PR_fixture",
+        "number": 3, "state": "open", "draft": False, "node_id": "PR_fixture",
         "title": "Adapt Herdr: Herdr v0.9.3",
         "body": "<!-- gh-aw-workflow-id: adapt-herdr -->\n"
                 "<!-- gh-aw-agentic-workflow: Adapt Herdr, engine: copilot, model: auto, id: 100, workflow_id: adapt-herdr -->",
@@ -48,6 +48,10 @@ class MergeTests(unittest.TestCase):
 
     def test_ci_requires_all_jobs_success_on_exact_head(self):
         self.assertTrue(merge.ci_passed(ci_run(), jobs(), "head"))
+        irrelevant = {"name": "Maintenance review (not applicable)", "status": "completed", "conclusion": "skipped"}
+        self.assertTrue(merge.ci_passed(ci_run(), jobs() + [irrelevant], "head"))
+        irrelevant["name"] = "Review Herdr adaptation"
+        self.assertFalse(merge.ci_passed(ci_run(), jobs() + [irrelevant], "head"))
         self.assertFalse(merge.ci_passed(ci_run(), jobs(), "new-head"))
         self.assertFalse(merge.ci_passed(ci_run(), jobs()[1:], "head"))
         for conclusion in ("failure", "skipped", "cancelled", "neutral", None):
@@ -81,13 +85,11 @@ class MergeTests(unittest.TestCase):
             merge.merge(pull_request(), run or ci_run())
         return writes
 
-    def test_verified_draft_is_marked_ready_then_merged_with_head_lock(self):
+    def test_reviewed_ready_pr_is_merged_with_head_lock(self):
         writes = self.exercise()
-        self.assertEqual(writes[0][0], "graphql")
-        self.assertEqual(writes[0][2]["variables"], {"id": "PR_fixture"})
-        self.assertEqual(writes[1][0], f"repos/{merge.REPOSITORY}/pulls/3/merge")
-        self.assertEqual(writes[1][2]["sha"], "head")
-        self.assertEqual(writes[1][2]["merge_method"], "squash")
+        self.assertEqual(writes[0][0], f"repos/{merge.REPOSITORY}/pulls/3/merge")
+        self.assertEqual(writes[0][2]["sha"], "head")
+        self.assertEqual(writes[0][2]["merge_method"], "squash")
 
     def test_stale_base_updates_branch_and_waits_for_new_ci(self):
         writes = self.exercise(base="new-base")
@@ -116,7 +118,7 @@ class MergeTests(unittest.TestCase):
     def test_review_is_bound_to_current_head_base_run_and_bot_identity(self):
         head, base = "a" * 40, "b" * 40
         review = {"id": 1, "user": {"login": "github-actions[bot]"}, "commit_id": head,
-                  "body": f"<!-- herdr-api-review:APPROVED:{head}:{base}:300 -->"}
+                  "body": f"HERDR_REVIEW: APPROVED head={head} base={base} run=300"}
         origin = {"path": ".github/workflows/review-herdr.lock.yml", "status": "completed", "conclusion": "success"}
         with patch.object(merge, "pages", return_value=[review]), patch.object(merge, "api", return_value=origin):
             self.assertTrue(merge.review_decision(pull_request(), head, base))

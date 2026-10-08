@@ -191,8 +191,11 @@ using a branch with the required `adapt-herdr-` prefix. Include:
 - A summary of protocol changes, extraction choices, and compatibility impact.
 - The actual commands and results, identifying any remaining blocker explicitly.
 - `<!-- herdr-api-adaptation:<target-tag> -->` so maintainers can identify the update.
-- A clear statement that no tag or package was published and that merging does
-  not publish anything.
+- A visible line `HERDR_ADAPTATION_STATUS: READY` only after all local verification
+  succeeds and no blocker remains. Otherwise use `HERDR_ADAPTATION_STATUS: BLOCKED`.
+- State that you have not published anything. Trusted automation marks a complete
+  PR ready after CI, requests independent review, merges after approval, and then
+  tags and publishes the verified version.
 
 If fully adapting the version is impossible within this run, still preserve
 useful work in a draft PR and describe the exact blocker and failed verification.

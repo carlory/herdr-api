@@ -19,6 +19,8 @@ def outputs(**values):
 def prepare():
     outputs(ready="false")
     for pr, run in merge.candidates():
+        if pr["draft"]:
+            continue
         result = merge.verified(pr, run)
         if not result:
             continue

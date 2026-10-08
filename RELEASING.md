@@ -1,7 +1,8 @@
 # Releasing herdr-api
 
-The release workflow is implemented, but **no tag or package has been published**.
-Implementing or rehearsing this workflow does not authorize an actual release.
+The unattended upstream adaptation pipeline is authorized to tag and publish
+updates after CI and independent review pass. See [UPDATING.md](UPDATING.md).
+Manual dispatches of `Release` remain dry runs.
 
 ## Version policy
 
@@ -10,8 +11,9 @@ The crate version and tag mirror the pinned stable Herdr release exactly:
 Preflight checks also enforce the lockfile version and the library's Herdr,
 protocol, and Schema version constants. Release commits must belong to `main`.
 
-There is no automatic version bump or tag creation. A different upstream version
-requires updating the extraction, fingerprints, asset digests, and tests first.
+The author agent adapts extraction, fingerprints, asset digests, and tests before
+the independently reviewed version is merged. After CI passes on the merged main
+commit, the deterministic tag workflow creates its annotated version tag.
 crates.io versions cannot be replaced. Corrections to an already published mirror
 require an explicit version policy decision; this workflow does not invent one.
 
@@ -56,9 +58,19 @@ cannot reserve the name or verify ownership without publication.
 The GitHub Release job uses the built-in `GITHUB_TOKEN` with `contents: write`;
 no personal GitHub token is needed. The registry secret is exposed only to the
 actual `cargo publish` step. Ordinary CI and manual rehearsals do not receive it.
-No credentials or environment settings are installed by the repository scripts.
+`scripts/configure_publication.py` stores the token with hidden input in the fixed
+repository environment. The tag job receives only a boolean indicating whether
+publication authentication exists. No AI agent receives the registry token.
 
-## Actual release, only after explicit authorization
+## Automatic release after verification
+
+`Tag verified Herdr adaptation` checks the merged PR provenance, independent review,
+stable version, current main commit, and its complete CI. It creates an annotated
+tag with the existing repository-scoped GitHub PAT, triggering this release workflow.
+No additional human approval is required. Existing tags are never overwritten.
+Publishing then follows the same candidate and checksum checks below.
+
+## Manual release recovery
 
 After reviewing a successful dry run, configure the registry secret and create
 an annotated tag on that exact reviewed commit. These commands **trigger actual

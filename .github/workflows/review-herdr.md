@@ -1,6 +1,9 @@
 ---
 description: Independently review a CI-verified Herdr protocol adaptation before automatic merge.
 on:
+  pull_request:
+    types: [ready_for_review, synchronize, reopened]
+    branches: [main]
   workflow_run:
     workflows: [CI]
     types: [completed]
@@ -39,6 +42,9 @@ jobs:
   prepare:
     if: >-
       github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       !github.event.pull_request.draft &&
+       github.event.pull_request.head.repo.full_name == github.repository) ||
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event == 'pull_request' &&
        github.event.workflow_run.head_repository.full_name == github.repository)
@@ -69,7 +75,7 @@ jobs:
           CHECK_TOKEN: ${{ github.token }}
           MERGE_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
           CI_RUN_ID: ${{ github.event.workflow_run.id }}
-          REQUESTED_PR: ${{ inputs.pull_request }}
+          REQUESTED_PR: ${{ inputs.pull_request || github.event.pull_request.number }}
         run: python scripts/review_adaptation.py prepare
   activation:
     needs: [prepare]
@@ -145,9 +151,9 @@ If any material defect or unverifiable claim remains, the decision is BLOCKED.
 Do not approve just because CI passed. A clean review must explicitly state that
 no blocking findings remain. Include exactly one of these markers in the body:
 
-`<!-- herdr-api-review:APPROVED:${{ needs.prepare.outputs.head }}:${{ needs.prepare.outputs.base }}:${{ github.run_id }} -->`
+`HERDR_REVIEW: APPROVED head=${{ needs.prepare.outputs.head }} base=${{ needs.prepare.outputs.base }} run=${{ github.run_id }}`
 
-`<!-- herdr-api-review:BLOCKED:${{ needs.prepare.outputs.head }}:${{ needs.prepare.outputs.base }}:${{ github.run_id }} -->`
+`HERDR_REVIEW: BLOCKED head=${{ needs.prepare.outputs.head }} base=${{ needs.prepare.outputs.base }} run=${{ github.run_id }}`
 
 The trusted verdict job maps that decision to a GitHub check. A separate
 deterministic workflow merges only after both review and CI pass. You have no

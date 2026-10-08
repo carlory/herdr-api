@@ -34,7 +34,8 @@ def api(path, *, method="GET", data=None, token_name=None):
     request = Request("https://api.github.com/" + path, data=body, headers=headers, method=method)
     try:
         with urlopen(request, timeout=60) as response:
-            result = json.load(response)
+            payload = response.read()
+            result = json.loads(payload) if payload else {}
     except HTTPError as error:
         # Response bodies can contain credential material. Report only status.
         try:
@@ -72,11 +73,14 @@ def adaptation_tag(pr):
     return match[1]
 
 
-def ci_passed(run, jobs, head):
-    return (run["path"] == ".github/workflows/ci.yml" and run["event"] == "pull_request"
+def ci_passed(run, jobs, head, expected_event="pull_request"):
+    return (run["path"] == ".github/workflows/ci.yml" and run["event"] == expected_event
             and run["status"] == "completed" and run["conclusion"] == "success"
             and run["head_sha"] == head and REQUIRED_JOBS.issubset({job["name"] for job in jobs})
-            and all(job["status"] == "completed" and job["conclusion"] == "success" for job in jobs))
+            and all(job["status"] == "completed" and
+                    (job["conclusion"] == "success" or
+                     (job["name"] == "Maintenance review (not applicable)" and job["conclusion"] == "skipped"))
+                    for job in jobs))
 
 
 def verify_origin(pr):
@@ -132,7 +136,7 @@ def review_decision(pr, head, base, expected_run=None):
     for review in reviews:
         if review["user"]["login"] != "github-actions[bot]" or review["commit_id"] != head:
             continue
-        match = re.search(r"<!-- herdr-api-review:(APPROVED|BLOCKED):([a-f0-9]{40}):([a-f0-9]{40}):(\d+) -->", review.get("body") or "")
+        match = re.search(r"HERDR_REVIEW: (APPROVED|BLOCKED) head=([a-f0-9]{40}) base=([a-f0-9]{40}) run=(\d+)\b", review.get("body") or "")
         if match and match[2] == head and match[3] == base and (expected_run is None or int(match[4]) == expected_run):
             matching.append((review["id"], match[1], int(match[4])))
     if not matching:
@@ -148,6 +152,9 @@ def review_decision(pr, head, base, expected_run=None):
 
 
 def merge(pr, run):
+    if pr["draft"]:
+        print("Skipped: adaptation is not ready for review.")
+        return
     result = verified(pr, run)
     if not result:
         return
@@ -161,13 +168,11 @@ def merge(pr, run):
         print("Skipped: PR or main changed during verification.")
         return
     if current["draft"]:
-        api("graphql", method="POST", data={
-            "query": "mutation($id:ID!){markPullRequestReadyForReview(input:{pullRequestId:$id}){pullRequest{id}}}",
-            "variables": {"id": current["node_id"]},
-        })
+        print("Skipped: PR was returned to draft.")
+        return
     result = api(f"repos/{REPOSITORY}/pulls/{pr['number']}/merge", method="PUT", data={
         "sha": head, "merge_method": "squash", "commit_title": f"Adapt Herdr {tag} (#{pr['number']})",
-        "commit_message": "Verified protocol adaptation. No tag or package publication.",
+        "commit_message": "Protocol adaptation verified by CI and independent review.",
     })
     if not result.get("merged"):
         raise RuntimeError("GitHub declined the merge")
