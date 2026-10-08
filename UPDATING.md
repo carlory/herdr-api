@@ -57,7 +57,7 @@ so the repository's default GITHUB_TOKEN remains read-only and its Actions PR
 approval setting does not need to be enabled. No approval or merge safe output
 is configured.
 
-Open [Create the adaptation token](https://github.com/settings/personal-access-tokens/new?name=herdr-api-adaptation&target_name=carlory&expires_in=none&copilot_requests=read&contents=write&pull_requests=write)
+Open [Create the adaptation token](https://github.com/settings/personal-access-tokens/new?name=herdr-api-adaptation&target_name=carlory&expires_in=none&user_copilot_requests=read&contents=write&pull_requests=write)
 in your signed-in GitHub account. Verify these settings:
 
 - Resource owner: `carlory`, with an active Copilot subscription.
@@ -70,6 +70,14 @@ The URL prefills permissions; verify all settings before generating the token.
 The token has no expiration date. Existing broad CLI credentials are not
 copied to the repository.
 Tokens must never be pasted into a PR, issue, or chat message.
+
+The account permission uses the URL parameter `user_copilot_requests=read`, as
+in gh-aw's official Copilot authentication link. Verify **Account permissions >
+Copilot Requests > Read** in the form. If the run reports that the PAT does not
+have Copilot Requests permission, edit the existing token at
+[Fine-grained personal access tokens](https://github.com/settings/personal-access-tokens),
+add that account permission, save, and rerun the workflow. Permission changes
+do not require creating another token or replacing the two secret values.
 
 After generating it, run this command in a local terminal:
 
