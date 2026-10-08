@@ -8,16 +8,18 @@ The crate includes requests, success and error responses, lifecycle events,
 subscription events, and their referenced data types. It includes no socket
 client, CLI wrapper, terminal protocol, or Herdr runtime.
 
-## Usage before a release
+## Usage
 
-No tag, GitHub Release, or crates.io package has been published. Pin a reviewed
-Git commit when consuming this repository:
+Use the Git tag matching your Herdr release:
 
 ```toml
 [dependencies]
-herdr-api = { git = "https://github.com/carlory/herdr-api", rev = "<full commit SHA>" }
+herdr-api = { git = "https://github.com/carlory/herdr-api", tag = "v0.9.2" }
 serde_json = "1"
 ```
+
+This crate is distributed through Git tags and GitHub Releases. Registry
+publication is disabled with `publish = false`.
 
 Construct a JSON request:
 
@@ -110,8 +112,7 @@ than a Rust `HashMap` or numeric field; the server remains authoritative.
 The Cargo version identifies the mirrored Herdr release. [Upstream adaptation](UPDATING.md)
 uses one agent to detect stable releases and prepare adaptation PRs. PRs merge
 automatically after current-head CI passes. Verified main commits are
-tagged automatically, starting the [release workflow](RELEASING.md) for crates.io
-and GitHub publication. Manual release dispatches remain dry runs. Local corrections need
+tagged automatically, starting the [release workflow](RELEASING.md) for GitHub publication. Manual release dispatches remain dry runs. Local corrections need
 an explicit versioning policy before publication.
 
 ## License

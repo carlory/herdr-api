@@ -10,7 +10,6 @@ import re
 import shutil
 import subprocess
 import tarfile
-import time
 import tomllib
 from urllib.error import HTTPError
 from urllib.parse import quote, urlparse
@@ -39,6 +38,8 @@ def output(**values) -> None:
 
 def metadata(root: Path, tag: str) -> dict:
     package = tomllib.loads((root / "Cargo.toml").read_text())["package"]
+    if package.get("publish") is not False:
+        raise RuntimeError("registry publication must be disabled in Cargo.toml")
     upstream = tomllib.loads((root / "upstream.toml").read_text())
     version = package["version"]
     if package["name"] != "herdr-api" or not re.fullmatch(r"\d+\.\d+\.\d+", version):
@@ -80,6 +81,8 @@ def validate_package(package: Path, identity: dict) -> None:
     with tarfile.open(package, "r:gz") as archive:
         vcs = json.load(archive.extractfile(f"{prefix}/.cargo_vcs_info.json"))
         manifest = tomllib.loads(archive.extractfile(f"{prefix}/Cargo.toml").read().decode())
+    if manifest["package"].get("publish") is not False:
+        raise RuntimeError("release package must disable registry publication")
     if manifest["package"]["name"] != identity["name"] or manifest["package"]["version"] != identity["version"]:
         raise RuntimeError("package identity differs from the checkout")
     if vcs["git"]["sha1"] != identity["commit"] or vcs["git"].get("dirty", False):
@@ -117,7 +120,7 @@ def prepare(tag: str, package_dir: Path, dist: Path) -> None:
         "- No Herdr runtime, socket client, or CLI wrapper.\n"
         "- Linux, macOS, and Windows checks install the pinned official binary and compare Schema.\n"
         "- Linux and macOS additionally verify real socket and plugin hook payloads.\n\n"
-        f"```toml\nherdr-api = \"={identity['version']}\"\n```\n\n"
+        f'```toml\nherdr-api = {{ git = "https://github.com/{REPOSITORY}", tag = "{identity["tag"]}" }}\n```\n\n'
         "Release assets include the crate, both Schema documents, extraction provenance, "
         "and SHA-256 checksums. Schema parity does not prove every server-side validation rule.\n"
     )
@@ -173,27 +176,6 @@ def request(url: str, *, method="GET", data=None, token=None, content_type="appl
             raise RuntimeError(f"{method} {urlparse(url).hostname}: HTTP {error.code}") from None
         finally:
             error.close()
-
-
-def registry(dist: Path, wait: int = 0) -> bool:
-    identity = verify_candidate(dist)
-    expected = sha256(dist / f"herdr-api-{identity['version']}.crate")
-    url = f"https://crates.io/api/v1/crates/herdr-api/{identity['version']}"
-    deadline = time.monotonic() + wait
-    while True:
-        response = request(url, missing_ok=True)
-        if response is not None:
-            version = response["version"]
-            if version["yanked"] or version["checksum"] != expected:
-                raise RuntimeError("crates.io version exists but is yanked or has different package bytes; refusing to overwrite or skip")
-            output(exists="true")
-            return True
-        if not wait:
-            output(exists="false")
-            return False
-        if time.monotonic() >= deadline:
-            raise RuntimeError("published package did not become visible before the deadline; rerun after checking crates.io")
-        time.sleep(min(5, max(0, deadline - time.monotonic())))
 
 
 def guard(dist: Path) -> dict:
@@ -274,32 +256,14 @@ def main() -> None:
     candidate.add_argument("--tag", required=True)
     candidate.add_argument("--package-dir", type=Path, required=True)
     candidate.add_argument("--dist", type=Path, default=ROOT / "dist")
-    match = commands.add_parser("match-package")
-    match.add_argument("--package-dir", type=Path, required=True)
-    match.add_argument("--dist", type=Path, required=True)
-    registered = commands.add_parser("registry")
-    registered.add_argument("--dist", type=Path, required=True)
-    registered.add_argument("--wait", type=int, default=0)
     publish = commands.add_parser("github")
     publish.add_argument("--dist", type=Path, required=True)
-    gate = commands.add_parser("guard")
-    gate.add_argument("--dist", type=Path, required=True)
     args = parser.parse_args()
     if args.command == "check":
         result = check(args.tag, args.require_tag)
         output(tag=result["tag"], version=result["version"])
     elif args.command == "prepare":
         prepare(args.tag, args.package_dir, args.dist)
-    elif args.command == "match-package":
-        identity = verify_candidate(args.dist)
-        filename = f"herdr-api-{identity['version']}.crate"
-        validate_package(args.package_dir / filename, identity)
-        if sha256(args.package_dir / filename) != sha256(args.dist / filename):
-            raise RuntimeError("rebuilt package differs from the reviewed candidate")
-    elif args.command == "registry":
-        registry(args.dist, args.wait)
-    elif args.command == "guard":
-        guard(args.dist)
     else:
         github_release(args.dist)
 

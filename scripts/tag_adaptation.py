@@ -31,8 +31,6 @@ def tag_commit(tag):
 
 
 def main():
-    if os.environ.get("HAS_PUBLICATION_TOKEN") != "true":
-        raise RuntimeError("configure the crates-io publishing token before creating a release tag")
     commit = merge.api(f"repos/{merge.REPOSITORY}/git/ref/heads/main")["object"]["sha"]
     if run_id := os.environ.get("CI_RUN_ID"):
         run = merge.api(f"repos/{merge.REPOSITORY}/actions/runs/{int(run_id)}")

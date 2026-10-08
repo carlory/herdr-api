@@ -142,7 +142,7 @@ downloaded content. Do not run upstream build scripts or compile Herdr.
   behavior. Remove runtime-only skipped fields and dependencies as documented.
 - Do not add a Herdr runtime, socket client, CLI wrapper, or upstream Git dependency.
 - Match upstream's schemars version if its generator changed. Keep dependencies
-  minimal and publishable from crates.io.
+  minimal and preserve `publish = false`; this crate is distributed through Git tags.
 - Update the Cargo version and library compatibility constants to the target.
   Refresh Cargo.lock with Cargo; never hand-edit generated files.
 - Run `python scripts/upstream.py write-metadata .upstream/<target-tag>` to
@@ -151,7 +151,7 @@ downloaded content. Do not run upstream build scripts or compile Herdr.
   replacement and use `--omit-source <old-path> --extra-source <new-path>`.
   Update EXTRACTION.md and NOTICE to explain every extraction modification.
 - Update README and RELEASING examples for the mirrored version, retaining the
-  explicit separation between adaptation and actual release authorization.
+  Git-tag dependency examples and automated GitHub release behavior.
 - Port upstream protocol tests and add meaningful tests for new behavior. Keep
   independent fixtures that detect incorrect serialization. Do not loosen
   comparisons, skip failing tests, or change expected values merely to make a
@@ -192,7 +192,7 @@ using a branch with the required `adapt-herdr-` prefix. Include:
 - The actual commands and results, identifying any remaining blocker explicitly.
 - `<!-- herdr-api-adaptation:<target-tag> -->` so maintainers can identify the update.
 - State that you have not published anything. Trusted automation merges the PR
-  after current-head cross-platform CI passes, then tags and publishes the version.
+  after current-head cross-platform CI passes, then tags and creates a GitHub Release.
 
 If fully adapting the version is impossible within this run, do not create a PR
 or claim success. Describe the exact blocker and failed verification in the run
@@ -200,4 +200,4 @@ summary. The next scheduled run can retry the same version. An existing open
 adaptation PR pauses creation of another PR; failing CI leaves it open.
 
 Do not merge the PR, create or push a tag, create a GitHub Release, publish a
-crate, send messages to other services, or interact with the upstream project.
+crate to a registry, send messages to other services, or interact with the upstream project.

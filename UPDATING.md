@@ -2,8 +2,8 @@
 
 One GitHub Agentic Workflow, `Adapt Herdr`, detects stable Herdr releases every
 six hours and prepares an adaptation PR. When its CI passes, deterministic
-workflows merge the PR, tag the verified merge commit, publish to crates.io,
-and complete the GitHub Release. There are no separate review or repair agents.
+workflows merge the PR, tag the verified merge commit, and publish a GitHub
+Release. There are no separate review or repair agents.
 
 ## Detection and adaptation
 
@@ -38,13 +38,12 @@ PRs and forks are not automatically merged. Drafts are not automatically merged.
 
 After CI passes on main, the tag workflow requires main to be the adaptation's
 exact merge commit and the version to match the pinned Herdr release. It creates
-an annotated immutable tag with the existing repository-scoped PAT. A separate
-credential-presence job emits only a boolean, with no checkout or write token.
-The tag job has no registry credential. Existing tags are never moved.
+an annotated immutable tag with the existing repository-scoped PAT. Existing
+tags are never moved.
 
 The tag push starts `Release`, which verifies the three platforms, packages a
-candidate, publishes to crates.io and confirms its checksum before publishing
-the GitHub Release. Only the registry upload step receives the registry token.
+candidate and publishes the GitHub Release after verifying all asset checksums.
+Registry publication is disabled with `publish = false`.
 See [RELEASING.md](RELEASING.md) for validation and recovery. Manual Release
 workflow dispatches are dry runs. No individual approval is required for this
 configured unattended pipeline.
@@ -60,13 +59,9 @@ The repository uses the existing fine-grained GitHub PAT in two Actions secrets:
 
 The same PAT supplies both secrets; its inference use also carries repository
 write permissions. GitHub tools use a read-only Actions token and writes are
-restricted to declared safe outputs. No AI agent receives the registry token.
+restricted to declared safe outputs.
 The token has no expiration, as configured. To rotate credentials, update the
 same secret names in GitHub settings; no setup scripts are required.
-
-`CARGO_REGISTRY_TOKEN` is stored in the `crates-io` environment, which has no
-manual reviewers. Its crates.io permissions support publishing new crates and
-updates; the configured token may cover All crates.
 
 ## Operation and maintenance
 
