@@ -107,9 +107,11 @@ compatibility with other Herdr releases, accept unknown enum variants, or enforc
 every runtime rule documented by Herdr. Schema-only constraints can be stricter
 than a Rust `HashMap` or numeric field; the server remains authoritative.
 
-The Cargo version identifies the mirrored Herdr release. No automatic update,
-tagging, or publishing workflow is configured. Future local correction versions
-will need an explicit versioning policy before publication.
+The Cargo version identifies the mirrored Herdr release. There is no automatic
+update or tag creation. The [release workflow](RELEASING.md) supports manual dry
+runs and publishes to crates.io and GitHub only after a version tag is pushed.
+No tag or package has been published. Future local correction versions will need
+an explicit versioning policy before publication.
 
 ## License
 
