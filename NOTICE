@@ -1,0 +1,10 @@
+Herdr API
+
+Protocol definitions are derived from Herdr v0.9.3,
+https://github.com/herdrdev/herdr
+commit 7b116c05bfda646af39d2524c54e70c751f57ee8.
+Upstream code is licensed under Apache-2.0.
+
+This independent extraction is maintained by carlory and is not an official
+Herdr SDK. Changes include module path adaptation, public protocol dependency
+types, and removal of non-wire fields and runtime-only helpers.

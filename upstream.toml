@@ -1,0 +1,85 @@
+repository = "https://github.com/herdrdev/herdr"
+version = "0.9.3"
+tag = "v0.9.3"
+commit = "7b116c05bfda646af39d2524c54e70c751f57ee8"
+protocol = 22
+schema_version = 1
+
+[[sources]]
+path = "src/api/schema.rs"
+sha256 = "0e3015fd11e089b97586dfb786c31e7c232659c25ce35201b3ad50e1773e8e09"
+
+[[sources]]
+path = "src/api/schema/agents.rs"
+sha256 = "a1906895b9bd7b95c8961cdee74f800ebfa35e7ca23f01e9ff7d3c3c0daf2af4"
+
+[[sources]]
+path = "src/api/schema/commands.rs"
+sha256 = "b39f18b9b52b08c8a5d32cb32e343b6a0134cc33c0af181d45b6b1c240615b20"
+
+[[sources]]
+path = "src/api/schema/common.rs"
+sha256 = "aacc11e403f5f73fe61260c97231aeffa635f65c64c3f31cc12ef1bb0f330984"
+
+[[sources]]
+path = "src/api/schema/events.rs"
+sha256 = "2ffa613e7a88b5934fe96b7593adfe4c04b21d3129fe92c95a6e67a90877100b"
+
+[[sources]]
+path = "src/api/schema/integrations.rs"
+sha256 = "1efe37f7fa7c11d356ad72e92deefffb44de221658e313c3c27227181207f26a"
+
+[[sources]]
+path = "src/api/schema/panes.rs"
+sha256 = "272dbab0fa7e963cd18d529710a710b42a21c939dc5172bfc0e5095b53abf4c7"
+
+[[sources]]
+path = "src/api/schema/plugins.rs"
+sha256 = "5dc88cff1e89202c01d27a46525ebbb41a195d49c55d78b16202a3fa0d487882"
+
+[[sources]]
+path = "src/api/schema/response.rs"
+sha256 = "0b85658265923fcaa59b0233abc46820cd3fe97199bbc4a22a94c4036ca59226"
+
+[[sources]]
+path = "src/api/schema/server.rs"
+sha256 = "f42d831e2a863a09bdd6e35a7f0fc217c97327eb5b8a8fe58b2ba862ca0c1ccf"
+
+[[sources]]
+path = "src/api/schema/session.rs"
+sha256 = "0b9c325613c9f214f7d74277b8f5ccdbf3e02c0af80f53fc9ec9d94f22b8367d"
+
+[[sources]]
+path = "src/api/schema/tabs.rs"
+sha256 = "0b6bf6d2afe6419c835082e39fac3470b832a12a7ba22e5723d3702ac4e5d810"
+
+[[sources]]
+path = "src/api/schema/workspaces.rs"
+sha256 = "80f326a0718875b496cd3b9305849a5142c82546eb13fe8b4435008258806654"
+
+[[sources]]
+path = "src/api/schema/worktrees.rs"
+sha256 = "1722e28a21330d8703a33b8f7280903681d7ec3463ab86b941439c3de6693c39"
+
+[[sources]]
+path = "src/api/schema/tests.rs"
+sha256 = "284bd86ed61e54329dc2dfb4e0e6f7659c5c371eb28de01e238342463d0a44ea"
+
+[[sources]]
+path = "src/config/model.rs"
+sha256 = "ad55e908b86bd8f3c384d26afc0a392351230b9ba4b5e49d6ea638ef7c692c69"
+
+[[sources]]
+path = "src/agent_resume.rs"
+sha256 = "8d94a2f518e0df34b53fe11310584bb07c047e1aa767637e05c25b6ed7f582e7"
+
+[[sources]]
+path = "src/popup_size.rs"
+sha256 = "8c4faa4a4a49cf02d3efa632784047697e78dabf436ec102442a3005a7afcda0"
+
+[assets]
+herdr-linux-x86_64 = "18a8dc65f1c2fa485884344356dea1cfd911c6f06cf46fa78e193f4087f4dba7"
+herdr-linux-aarch64 = "4de7aa3e25678812e92960de64f7c2aaa1bca1f0f80a3c5e559837e231e1f5c0"
+herdr-macos-aarch64 = "5173a3e0ae42d5d1ab7ebfa5d5e6329f7c3d23f8e1a3677c7ce3231da2884157"
+herdr-macos-x86_64 = "db62d548ff3e832b087a96b1894a08d26be3905f1830309cd556783f215d4054"
+herdr-windows-x86_64.zip = "c75b1fa49f7a3ba4b8b11789912a6147e4214a3b6fd3556d0f80076c8887d795"
