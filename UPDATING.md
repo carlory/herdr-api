@@ -33,11 +33,12 @@ and release notes are treated as data, not agent instructions.
 
 This is a personal repository, so configure these repository Actions secrets:
 
-- `COPILOT_GITHUB_TOKEN`: a fine-grained PAT for an account with Copilot access
-  and the Copilot Requests permission, as required by gh-aw's Copilot engine.
+- `COPILOT_GITHUB_TOKEN`: a fine-grained PAT for your personal account with
+  Copilot access and Account permissions > Copilot Requests > Read.
 - `GH_AW_CI_TRIGGER_TOKEN`: a fine-grained PAT restricted to `carlory/herdr-api`
-  with Contents read/write. gh-aw uses it only downstream to push an empty commit
-  after creating the PR, which starts ordinary pull-request CI.
+  with Contents read/write and Pull requests read/write. gh-aw uses it only in
+  the downstream PR safe output to push the adaptation branch and create its PR.
+  This starts ordinary pull-request CI directly, without an extra empty commit.
 
 The agent's GitHub token is read-only. Code writes are limited to the declared
 `create-pull-request` safe output. The CI trigger credential is not passed to
@@ -47,8 +48,34 @@ Without these credentials, detection still works and records the new target in
 the run summary and `upstream-detection` artifact. Activation and inference are
 skipped, with a warning that adaptation needs credentials. A missing credential
 does not cause a release to be considered adapted. Actual inference and PR
-creation require valid credentials and the repository's Actions setting that
-allows GitHub Actions to create pull requests.
+creation require valid credentials. The PR uses the dedicated PAT's identity,
+so the repository's default GITHUB_TOKEN remains read-only and its Actions PR
+approval setting does not need to be enabled. No approval or merge safe output
+is configured.
+
+Generate the two fine-grained PATs in your signed-in GitHub account:
+
+1. [Copilot inference token](https://github.com/settings/personal-access-tokens/new?name=herdr-api-copilot&target_name=carlory&expires_in=90&copilot_requests=read).
+2. [Adaptation PR token](https://github.com/settings/personal-access-tokens/new?name=herdr-api-adaptation&target_name=carlory&expires_in=90&contents=write&pull_requests=write).
+   For this token choose **Only select repositories > herdr-api**. Do not grant
+   organization administration, deletion, or workflow-editing permissions.
+
+The URLs prefill permissions, but verify the repository selection and account
+owner in GitHub before generating each token. They expire after 90 days and
+must be renewed. Existing broad CLI credentials are not copied to the repository.
+Tokens must never be pasted into a PR, issue, or chat message.
+
+After generating them, run this command in a local terminal:
+
+```sh
+python3 scripts/configure_adaptation.py
+```
+
+The helper prompts with hidden input, submits each token to its fixed repository
+secret through `gh` standard input, verifies secret names, and dispatches the
+adaptation workflow. It does not print tokens, put them in command arguments,
+write them to local files, or change repository permissions. If configuration
+partially fails, rerun the helper; it updates the same two secret names.
 
 ## Manual testing and maintenance
 
@@ -98,7 +125,7 @@ actions/secrets before accepting a compiler security-review prompt.
 Initial compiler review: `dtolnay/rust-toolchain` installs the stable Rust
 toolchain and is already used in CI; gh-aw pins it to a reviewed commit. The new
 credential references are `COPILOT_GITHUB_TOKEN` for inference and
-`GH_AW_CI_TRIGGER_TOKEN` for downstream CI triggering. No deployment or registry
+`GH_AW_CI_TRIGGER_TOKEN` for downstream PR creation and CI triggering. No deployment or registry
 credential was added. Compiler-supplied optional gh-aw telemetry/GitHub override
 secrets remain unset. There are no workflow redirects.
 

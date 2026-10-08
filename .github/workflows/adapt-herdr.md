@@ -35,7 +35,8 @@ safe-outputs:
     draft: true
     max: 1
     fallback-as-issue: false
-    github-token-for-extra-empty-commit: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
+    github-token: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
+    github-token-for-extra-empty-commit: none
     allowed-branches: ['adapt-herdr-*']
     allowed-files:
       - src/**
