@@ -44,7 +44,7 @@ def main() -> None:
         ["gh", "workflow", "run", "adapt-herdr.lock.yml", "--repo", REPOSITORY, "--ref", "main"],
         check=True,
     )
-    print("Adaptation dispatched; its PR will merge automatically after all required CI passes.")
+    print("Adaptation dispatched; its PR will merge automatically after CI and independent review pass.")
 
 
 if __name__ == "__main__":

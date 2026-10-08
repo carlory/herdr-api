@@ -25,11 +25,11 @@ ALLOWED_FILES = (
 )
 
 
-def api(path, *, method="GET", data=None):
-    token = os.environ["GH_TOKEN" if method == "GET" else "MERGE_TOKEN"]
+def api(path, *, method="GET", data=None, token_name=None):
+    token = os.environ[token_name or ("GH_TOKEN" if method == "GET" else "MERGE_TOKEN")]
     if not token:
         raise RuntimeError("required automation credential is missing")
-    headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
+    headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json", "Content-Type": "application/json"}
     body = None if data is None else json.dumps(data).encode()
     request = Request("https://api.github.com/" + path, data=body, headers=headers, method=method)
     try:
@@ -93,7 +93,7 @@ def metadata(ref):
     return tomllib.loads(base64.b64decode(result["content"]).decode())
 
 
-def merge(pr, run):
+def verified(pr, run):
     tag = adaptation_tag(pr)
     if not tag or not verify_origin(pr):
         print("Skipped: PR is not a workflow-created Herdr adaptation.")
@@ -123,6 +123,38 @@ def merge(pr, run):
         return tuple(int(part) for part in value.removeprefix("v").split("."))
     if target["tag"] != tag or target["version"] != tag[1:] or numeric(tag) <= numeric(baseline["tag"]):
         raise RuntimeError("adaptation must advance the pinned stable Herdr version")
+    return tag, head, main
+
+
+def review_decision(pr, head, base, expected_run=None):
+    reviews = pages(f"repos/{REPOSITORY}/pulls/{pr['number']}/reviews")
+    matching = []
+    for review in reviews:
+        if review["user"]["login"] != "github-actions[bot]" or review["commit_id"] != head:
+            continue
+        match = re.search(r"<!-- herdr-api-review:(APPROVED|BLOCKED):([a-f0-9]{40}):([a-f0-9]{40}):(\d+) -->", review.get("body") or "")
+        if match and match[2] == head and match[3] == base and (expected_run is None or int(match[4]) == expected_run):
+            matching.append((review["id"], match[1], int(match[4])))
+    if not matching:
+        return False
+    _, decision, run_id = max(matching)
+    if decision != "APPROVED":
+        return False
+    if expected_run is not None:
+        return True  # Called only by the trusted verdict job after safe outputs.
+    run = api(f"repos/{REPOSITORY}/actions/runs/{run_id}")
+    return (run["path"] == ".github/workflows/review-herdr.lock.yml"
+            and run["status"] == "completed" and run["conclusion"] == "success")
+
+
+def merge(pr, run):
+    result = verified(pr, run)
+    if not result:
+        return
+    tag, head, main = result
+    if not review_decision(pr, head, main):
+        print("Skipped: waiting for an approved independent review of this head and base.")
+        return
     # Recheck after API reads; the merge endpoint also atomically checks the head.
     current = api(f"repos/{REPOSITORY}/pulls/{pr['number']}")
     if current["state"] != "open" or current["head"]["sha"] != head or current["base"]["sha"] != main:
@@ -142,23 +174,34 @@ def merge(pr, run):
     print(f"Merged verified adaptation PR #{pr['number']}: {result['sha']}")
 
 
-def main():
+def candidates():
     if number := os.environ.get("REQUESTED_PR"):
         pr = api(f"repos/{REPOSITORY}/pulls/{int(number)}")
         if not adaptation_tag(pr):
             print("Skipped: ineligible PR.")
-            return
+            return []
         query = urlencode({"branch": pr["head"]["ref"], "event": "pull_request"})
         runs = pages(f"repos/{REPOSITORY}/actions/workflows/ci.yml/runs?{query}", "workflow_runs")
         matching = [run for run in runs if run["head_sha"] == pr["head"]["sha"]]
         if not matching:
             print("Skipped: current PR head has no CI run.")
-            return
-        merge(pr, max(matching, key=lambda run: run["id"]))
+            return []
+        return [(pr, max(matching, key=lambda run: run["id"]))]
     else:
         run = api(f"repos/{REPOSITORY}/actions/runs/{int(os.environ['CI_RUN_ID'])}")
-        for item in run["pull_requests"]:
-            merge(api(f"repos/{REPOSITORY}/pulls/{item['number']}"), run)
+        return [(api(f"repos/{REPOSITORY}/pulls/{item['number']}"), run) for item in run["pull_requests"]]
+
+
+def main():
+    if os.environ.get("REVIEW_RUN_ID"):
+        for pr in pages(f"repos/{REPOSITORY}/pulls?state=open&base=main"):
+            if adaptation_tag(pr):
+                os.environ["REQUESTED_PR"] = str(pr["number"])
+                for candidate, run in candidates():
+                    merge(candidate, run)
+    else:
+        for pr, run in candidates():
+            merge(pr, run)
 
 
 if __name__ == "__main__":

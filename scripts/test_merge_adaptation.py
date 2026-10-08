@@ -75,6 +75,7 @@ class MergeTests(unittest.TestCase):
         with patch.object(merge, "api", side_effect=api), \
                 patch.object(merge, "pages", side_effect=[jobs(), files or [{"filename": "upstream.toml"}]]), \
                 patch.object(merge, "verify_origin", return_value=origin), \
+                patch.object(merge, "review_decision", return_value=True), \
                 patch.object(merge, "metadata", side_effect=[{"tag": target, "version": target[1:]}, {"tag": "v0.9.2"}]), \
                 patch("builtins.print"):
             merge.merge(pull_request(), run or ci_run())
@@ -110,7 +111,25 @@ class MergeTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "protected path"):
                 self.exercise(files=[file])
         with self.assertRaisesRegex(RuntimeError, "advance"):
-            self.exercise(target="v0.9.2")
+                self.exercise(target="v0.9.2")
+
+    def test_review_is_bound_to_current_head_base_run_and_bot_identity(self):
+        head, base = "a" * 40, "b" * 40
+        review = {"id": 1, "user": {"login": "github-actions[bot]"}, "commit_id": head,
+                  "body": f"<!-- herdr-api-review:APPROVED:{head}:{base}:300 -->"}
+        origin = {"path": ".github/workflows/review-herdr.lock.yml", "status": "completed", "conclusion": "success"}
+        with patch.object(merge, "pages", return_value=[review]), patch.object(merge, "api", return_value=origin):
+            self.assertTrue(merge.review_decision(pull_request(), head, base))
+            self.assertFalse(merge.review_decision(pull_request(), "c" * 40, base))
+            self.assertFalse(merge.review_decision(pull_request(), head, "c" * 40))
+            self.assertFalse(merge.review_decision(pull_request(), head, base, expected_run=301))
+            blocked = dict(review, id=2, body=review["body"].replace("APPROVED", "BLOCKED"))
+            with patch.object(merge, "pages", return_value=[review, blocked]):
+                self.assertFalse(merge.review_decision(pull_request(), head, base))
+            with patch.object(merge, "api", return_value=dict(origin, conclusion="failure")):
+                self.assertFalse(merge.review_decision(pull_request(), head, base))
+            with patch.object(merge, "pages", return_value=[dict(review, user={"login": "someone"})]):
+                self.assertFalse(merge.review_decision(pull_request(), head, base))
 
 
 if __name__ == "__main__":
