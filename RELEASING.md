@@ -1,7 +1,7 @@
 # GitHub releases
 
 The release tag and Cargo version mirror the pinned stable Herdr release:
-`v0.9.2` identifies crate version `0.9.2` for Herdr `v0.9.2`. This repository
+`v0.9.3` identifies crate version `0.9.3` for Herdr `v0.9.3`. This repository
 uses Git tags and GitHub Releases; `publish = false` disables registry publication.
 
 ## Automatic releases
@@ -29,7 +29,7 @@ Consumers use the matching Git tag:
 
 ```toml
 [dependencies]
-herdr-api = { git = "https://github.com/carlory/herdr-api", tag = "v0.9.2" }
+herdr-api = { git = "https://github.com/carlory/herdr-api", tag = "v0.9.3" }
 ```
 
 ## Rehearsal
@@ -38,7 +38,7 @@ Manual dispatches validate a candidate and retain artifacts without creating a
 tag or GitHub Release:
 
 ```sh
-gh workflow run release.yml --repo carlory/herdr-api --ref main -f tag=v0.9.2
+gh workflow run release.yml --repo carlory/herdr-api --ref main -f tag=v0.9.3
 ```
 
 The `release-candidate` artifact is retained for 14 days. Only a tag push in

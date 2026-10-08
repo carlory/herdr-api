@@ -1,7 +1,7 @@
 repository = "https://github.com/herdrdev/herdr"
-version = "0.9.2"
-tag = "v0.9.2"
-commit = "48292af8e33a08c8030b7f1512c8d0da739f5ab1"
+version = "0.9.3"
+tag = "v0.9.3"
+commit = "7b116c05bfda646af39d2524c54e70c751f57ee8"
 protocol = 22
 schema_version = 1
 
@@ -78,8 +78,8 @@ path = "src/popup_size.rs"
 sha256 = "8c4faa4a4a49cf02d3efa632784047697e78dabf436ec102442a3005a7afcda0"
 
 [assets]
-"herdr-linux-x86_64" = "74de34746f96236f76d599f8f5d2439f884351eabe25b7495e0edab75414064a"
-"herdr-linux-aarch64" = "50ba6fe8dde5ff35af6654082d7e1a4afcb58c9ff3d22bfcf9d41445c971fcc7"
-"herdr-macos-aarch64" = "e5dae9c7d93010968897de10c6e9ea2aacb14965f7b9e3b3d061dba82d2a1944"
-"herdr-macos-x86_64" = "665b7f7aee96bfdd34ff46c111599170ceee68d860c9fe9ea17cd5f9a80bdc43"
-"herdr-windows-x86_64.zip" = "de7529c55f3083a444f74673399ed16d1abe45ff08a43dbfea99e4d0edf47d42"
+"herdr-linux-x86_64" = "18a8dc65f1c2fa485884344356dea1cfd911c6f06cf46fa78e193f4087f4dba7"
+"herdr-linux-aarch64" = "4de7aa3e25678812e92960de64f7c2aaa1bca1f0f80a3c5e559837e231e1f5c0"
+"herdr-macos-aarch64" = "5173a3e0ae42d5d1ab7ebfa5d5e6329f7c3d23f8e1a3677c7ce3231da2884157"
+"herdr-macos-x86_64" = "db62d548ff3e832b087a96b1894a08d26be3905f1830309cd556783f215d4054"
+"herdr-windows-x86_64.zip" = "c75b1fa49f7a3ba4b8b11789912a6147e4214a3b6fd3556d0f80076c8887d795"
