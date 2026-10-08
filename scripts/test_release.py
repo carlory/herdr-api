@@ -4,6 +4,7 @@ import copy
 import hashlib
 import io
 import json
+import os
 from pathlib import Path
 import tarfile
 import tempfile
@@ -45,6 +46,14 @@ def candidate(directory: Path) -> dict:
 
 
 class ReleaseTests(unittest.TestCase):
+    def setUp(self):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.output_path = Path(directory.name) / "github-output"
+        environment = patch.dict(os.environ, {"GITHUB_OUTPUT": str(self.output_path)})
+        environment.start()
+        self.addCleanup(environment.stop)
+
     def test_pinned_metadata_and_candidate_tag(self):
         pinned = tomllib.loads((release.ROOT / "upstream.toml").read_text())
         self.assertEqual(release.metadata(release.ROOT, pinned["tag"])["version"], pinned["version"])
@@ -96,6 +105,7 @@ class ReleaseTests(unittest.TestCase):
                 self.assertFalse(release.registry(dist))
             with patch.object(release, "request", return_value={"version": {"checksum": checksum, "yanked": False}}):
                 self.assertTrue(release.registry(dist))
+            self.assertEqual(self.output_path.read_text(), "exists=false\nexists=true\n")
             for digest, yanked in [("0" * 64, False), (checksum, True)]:
                 with patch.object(release, "request", return_value={"version": {"checksum": digest, "yanked": yanked}}):
                     with self.assertRaises(RuntimeError):
