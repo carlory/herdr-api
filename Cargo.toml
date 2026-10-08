@@ -6,7 +6,7 @@ description = "Unofficial protocol types for the Herdr 0.9.3 JSON API"
 license = "Apache-2.0"
 repository = "https://github.com/carlory/herdr-api"
 readme = "README.md"
-include = ["src/**", "examples/**", "tests/**", "scripts/**", "Cargo.toml", "README.md", "EXTRACTION.md", "LICENSE", "NOTICE", "upstream.toml"]
+include = ["src/**", "examples/**", "tests/**", "scripts/*.py", "Cargo.toml", "README.md", "EXTRACTION.md", "LICENSE", "NOTICE", "upstream.toml"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
