@@ -3,6 +3,7 @@
 import io
 from pathlib import Path
 import tempfile
+import tomllib
 import unittest
 from unittest.mock import patch
 
@@ -31,7 +32,7 @@ class ReleaseInstallerTests(unittest.TestCase):
                 request = download.call_args.args[0]
                 self.assertEqual(
                     request.full_url,
-                    f"https://github.com/herdrdev/herdr/releases/download/v0.9.3/{asset}",
+                    f"https://github.com/herdrdev/herdr/releases/download/{tomllib.loads((install_herdr.ROOT / 'upstream.toml').read_text())['tag']}/{asset}",
                 )
 
     def test_corrupted_asset_is_never_installed_or_executed(self):

@@ -2,4 +2,5 @@
 /.tools/
 /artifacts/
 /dist/
+/.upstream/
 __pycache__/

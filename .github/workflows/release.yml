@@ -8,7 +8,6 @@ on:
       tag:
         description: 'Candidate tag to validate (dry run only, no tag is created)'
         required: true
-        default: 'v0.9.3'
         type: string
 
 permissions:

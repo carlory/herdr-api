@@ -16,8 +16,9 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def install(destination: Path) -> Path:
-    metadata = tomllib.loads((ROOT / "upstream.toml").read_text())
+def install(destination: Path, metadata=None) -> Path:
+    if metadata is None:
+        metadata = tomllib.loads((ROOT / "upstream.toml").read_text())
     system = {"Linux": "linux", "Darwin": "macos", "Windows": "windows"}[platform.system()]
     arch = {"x86_64": "x86_64", "AMD64": "x86_64", "arm64": "aarch64", "aarch64": "aarch64"}[
         platform.machine()

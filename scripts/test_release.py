@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import tarfile
 import tempfile
+import tomllib
 import unittest
 from unittest.mock import patch
 from urllib.error import HTTPError
@@ -45,8 +46,9 @@ def candidate(directory: Path) -> dict:
 
 class ReleaseTests(unittest.TestCase):
     def test_pinned_metadata_and_candidate_tag(self):
-        self.assertEqual(release.metadata(release.ROOT, "v0.9.3")["version"], "0.9.3")
-        for tag in ["v0.9.4", "0.9.3", "v0.9.3-rc.1", "v0.9.3\nkey=value"]:
+        pinned = tomllib.loads((release.ROOT / "upstream.toml").read_text())
+        self.assertEqual(release.metadata(release.ROOT, pinned["tag"])["version"], pinned["version"])
+        for tag in ["v999.999.999", pinned["version"], pinned["tag"] + "-rc.1", pinned["tag"] + "\nkey=value"]:
             with self.subTest(tag=tag), self.assertRaises(RuntimeError):
                 release.metadata(release.ROOT, tag)
 
@@ -58,9 +60,12 @@ class ReleaseTests(unittest.TestCase):
                 target.parent.mkdir(exist_ok=True)
                 target.write_bytes((release.ROOT / name).read_bytes())
             source = root / "src/lib.rs"
-            source.write_text(source.read_text().replace("PROTOCOL_VERSION: u32 = 22", "PROTOCOL_VERSION: u32 = 23"))
+            pinned = tomllib.loads((root / "upstream.toml").read_text())
+            before = f"PROTOCOL_VERSION: u32 = {pinned['protocol']}"
+            after = f"PROTOCOL_VERSION: u32 = {pinned['protocol'] + 1}"
+            source.write_text(source.read_text().replace(before, after))
             with self.assertRaisesRegex(RuntimeError, "PROTOCOL_VERSION"):
-                release.metadata(root, "v0.9.3")
+                release.metadata(root, pinned["tag"])
 
     def test_modified_or_unexpected_asset_fails_before_network(self):
         for kind in ["modified", "extra", "incomplete", "traversal"]:

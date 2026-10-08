@@ -1,0 +1,14 @@
+{
+  "entries": {
+    "dtolnay/rust-toolchain@stable": {
+      "repo": "dtolnay/rust-toolchain",
+      "version": "stable",
+      "sha": "89b12181fb390509a0842a86cc55eeb8eb928c1d"
+    },
+    "github/gh-aw-actions/setup@v0.89.21": {
+      "repo": "github/gh-aw-actions/setup",
+      "version": "v0.89.21",
+      "sha": "924af5fdc64061cfbf66fb584c8b07e2ac230c60"
+    }
+  }
+}
