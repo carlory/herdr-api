@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tag a reviewed, merged adaptation after CI on the protected main commit."""
+"""Tag a CI-verified, merged adaptation after CI on the protected main commit."""
 
 import os
 import re
@@ -7,17 +7,12 @@ import re
 import merge_adaptation as merge
 
 
-def reviewed_merge(pr, tag, commit):
+def verified_merge(pr, tag, commit):
     if not pr.get("merged_at") or pr.get("merge_commit_sha") != commit or merge.adaptation_tag(dict(pr, state="open")) != tag:
         return False
     if not merge.verify_origin(pr):
         return False
-    reviews = merge.pages(f"repos/{merge.REPOSITORY}/pulls/{pr['number']}/reviews")
-    for review in sorted(reviews, key=lambda item: item["id"], reverse=True):
-        match = re.search(r"HERDR_REVIEW: APPROVED head=([a-f0-9]{40}) base=([a-f0-9]{40}) run=(\d+)\b", review.get("body") or "")
-        if match and match[1] == pr["head"]["sha"] and merge.review_decision(pr, match[1], match[2]):
-            return True
-    return False
+    return True
 
 
 def tag_commit(tag):
@@ -57,8 +52,8 @@ def main():
     if not re.fullmatch(r"v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)", tag) or pinned["version"] != tag[1:]:
         raise RuntimeError("invalid stable release identity")
     prs = merge.pages(f"repos/{merge.REPOSITORY}/pulls?state=closed&base=main&sort=updated&direction=desc")
-    if not any(reviewed_merge(pr, tag, commit) for pr in prs):
-        print("No independently reviewed merged adaptation for this version; no tag created.")
+    if not any(verified_merge(pr, tag, commit) for pr in prs):
+        print("No workflow-created merged adaptation for this version; no tag created.")
         return
     existing = tag_commit(tag)
     if existing:
@@ -70,7 +65,7 @@ def main():
         print("Main moved; waiting for its next CI run.")
         return
     obj = merge.api(f"repos/{merge.REPOSITORY}/git/tags", method="POST", data={
-        "tag": tag, "message": f"herdr-api {tag}: CI and independent review verified",
+        "tag": tag, "message": f"herdr-api {tag}: Cross-platform CI verified",
         "object": commit, "type": "commit",
     })
     merge.api(f"repos/{merge.REPOSITORY}/git/refs", method="POST", data={"ref": f"refs/tags/{tag}", "sha": obj["sha"]})

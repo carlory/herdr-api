@@ -108,8 +108,8 @@ every runtime rule documented by Herdr. Schema-only constraints can be stricter
 than a Rust `HashMap` or numeric field; the server remains authoritative.
 
 The Cargo version identifies the mirrored Herdr release. [Upstream adaptation](UPDATING.md)
-detects stable releases, prepares PRs, hands completed updates to independent review,
-repairs feedback, and merges after CI and review pass. Verified main commits are
+uses one agent to detect stable releases and prepare adaptation PRs. PRs merge
+automatically after current-head CI passes. Verified main commits are
 tagged automatically, starting the [release workflow](RELEASING.md) for crates.io
 and GitHub publication. Manual release dispatches remain dry runs. Local corrections need
 an explicit versioning policy before publication.

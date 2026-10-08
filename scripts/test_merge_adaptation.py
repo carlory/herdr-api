@@ -48,10 +48,6 @@ class MergeTests(unittest.TestCase):
 
     def test_ci_requires_all_jobs_success_on_exact_head(self):
         self.assertTrue(merge.ci_passed(ci_run(), jobs(), "head"))
-        irrelevant = {"name": "Maintenance review (not applicable)", "status": "completed", "conclusion": "skipped"}
-        self.assertTrue(merge.ci_passed(ci_run(), jobs() + [irrelevant], "head"))
-        irrelevant["name"] = "Review Herdr adaptation"
-        self.assertFalse(merge.ci_passed(ci_run(), jobs() + [irrelevant], "head"))
         self.assertFalse(merge.ci_passed(ci_run(), jobs(), "new-head"))
         self.assertFalse(merge.ci_passed(ci_run(), jobs()[1:], "head"))
         for conclusion in ("failure", "skipped", "cancelled", "neutral", None):
@@ -79,13 +75,12 @@ class MergeTests(unittest.TestCase):
         with patch.object(merge, "api", side_effect=api), \
                 patch.object(merge, "pages", side_effect=[jobs(), files or [{"filename": "upstream.toml"}]]), \
                 patch.object(merge, "verify_origin", return_value=origin), \
-                patch.object(merge, "review_decision", return_value=True), \
                 patch.object(merge, "metadata", side_effect=[{"tag": target, "version": target[1:]}, {"tag": "v0.9.2"}]), \
                 patch("builtins.print"):
             merge.merge(pull_request(), run or ci_run())
         return writes
 
-    def test_reviewed_ready_pr_is_merged_with_head_lock(self):
+    def test_ci_verified_pr_is_merged_with_head_lock(self):
         writes = self.exercise()
         self.assertEqual(writes[0][0], f"repos/{merge.REPOSITORY}/pulls/3/merge")
         self.assertEqual(writes[0][2]["sha"], "head")
@@ -115,23 +110,6 @@ class MergeTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "advance"):
                 self.exercise(target="v0.9.2")
 
-    def test_review_is_bound_to_current_head_base_run_and_bot_identity(self):
-        head, base = "a" * 40, "b" * 40
-        review = {"id": 1, "user": {"login": "github-actions[bot]"}, "commit_id": head,
-                  "body": f"HERDR_REVIEW: APPROVED head={head} base={base} run=300"}
-        origin = {"path": ".github/workflows/review-herdr.lock.yml", "status": "completed", "conclusion": "success"}
-        with patch.object(merge, "pages", return_value=[review]), patch.object(merge, "api", return_value=origin):
-            self.assertTrue(merge.review_decision(pull_request(), head, base))
-            self.assertFalse(merge.review_decision(pull_request(), "c" * 40, base))
-            self.assertFalse(merge.review_decision(pull_request(), head, "c" * 40))
-            self.assertFalse(merge.review_decision(pull_request(), head, base, expected_run=301))
-            blocked = dict(review, id=2, body=review["body"].replace("APPROVED", "BLOCKED"))
-            with patch.object(merge, "pages", return_value=[review, blocked]):
-                self.assertFalse(merge.review_decision(pull_request(), head, base))
-            with patch.object(merge, "api", return_value=dict(origin, conclusion="failure")):
-                self.assertFalse(merge.review_decision(pull_request(), head, base))
-            with patch.object(merge, "pages", return_value=[dict(review, user={"login": "someone"})]):
-                self.assertFalse(merge.review_decision(pull_request(), head, base))
 
 
 if __name__ == "__main__":

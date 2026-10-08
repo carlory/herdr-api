@@ -32,7 +32,7 @@ safe-outputs:
   create-pull-request:
     title-prefix: 'Adapt Herdr: '
     base-branch: main
-    draft: true
+    draft: false
     max: 1
     fallback-as-issue: false
     github-token: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
@@ -184,23 +184,20 @@ The platform CI on the resulting PR is the final cross-platform verification.
 
 ## Deliver the adaptation
 
-Create exactly one **draft PR** through the `create-pull-request` safe output,
+Create exactly one PR after all local verification passes through the `create-pull-request` safe output,
 using a branch with the required `adapt-herdr-` prefix. Include:
 
 - The target release link, full upstream commit, and previous mirrored version.
 - A summary of protocol changes, extraction choices, and compatibility impact.
 - The actual commands and results, identifying any remaining blocker explicitly.
 - `<!-- herdr-api-adaptation:<target-tag> -->` so maintainers can identify the update.
-- A visible line `HERDR_ADAPTATION_STATUS: READY` only after all local verification
-  succeeds and no blocker remains. Otherwise use `HERDR_ADAPTATION_STATUS: BLOCKED`.
-- State that you have not published anything. Trusted automation marks a complete
-  PR ready after CI, requests independent review, merges after approval, and then
-  tags and publishes the verified version.
+- State that you have not published anything. Trusted automation merges the PR
+  after current-head cross-platform CI passes, then tags and publishes the version.
 
-If fully adapting the version is impossible within this run, still preserve
-useful work in a draft PR and describe the exact blocker and failed verification.
-Never describe an incomplete adaptation as passing. The next scheduled run will
-not create another PR while this one remains open.
+If fully adapting the version is impossible within this run, do not create a PR
+or claim success. Describe the exact blocker and failed verification in the run
+summary. The next scheduled run can retry the same version. An existing open
+adaptation PR pauses creation of another PR; failing CI leaves it open.
 
 Do not merge the PR, create or push a tag, create a GitHub Release, publish a
 crate, send messages to other services, or interact with the upstream project.
