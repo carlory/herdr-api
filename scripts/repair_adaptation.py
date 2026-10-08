@@ -27,7 +27,7 @@ def feedback(pr, run):
         matching = [review for review in reviews if review["user"]["login"] == "github-actions[bot]"
                     and review["commit_id"] == pr["head"]["sha"]
                     and f"HERDR_REVIEW: BLOCKED head={pr['head']['sha']} " in (review.get("body") or "")
-                    and f"run={run['id']}" in review["body"]]
+                    and re.search(rf"\brun={run['id']}\b", review["body"])]
         if matching:
             return max(matching, key=lambda item: item["id"])["body"]
     return None
@@ -42,13 +42,23 @@ def main():
         notes = feedback(pr, run)
         if notes is None:
             continue
-        commits = merge.pages(f"repos/{merge.REPOSITORY}/pulls/{pr['number']}/commits")
-        rounds = [int(match[1]) for commit in commits
-                  if (match := re.match(r"Repair Herdr round (\d+)\b", commit["commit"]["message"]))]
-        round_number = max(rounds, default=0) + 1
+        comments = merge.pages(f"repos/{merge.REPOSITORY}/issues/{pr['number']}/comments")
+        claims = [match for comment in comments if comment["user"]["login"] == "github-actions[bot]"
+                  and (match := re.fullmatch(r"HERDR_REPAIR_ATTEMPT: round=(\d+) head=(\S+) source=(\d+) run=(\d+)", comment.get("body") or ""))]
+        if any(claim[2] == pr["head"]["sha"] and int(claim[3]) == run["id"] for claim in claims):
+            print("This feedback already has a reserved repair attempt.")
+            return
+        round_number = len(claims) + 1
         if round_number > MAX_ROUNDS:
             print(f"PR #{pr['number']} reached the repair limit; findings remain visible and no merge is authorized.")
             return
+        current = merge.api(f"repos/{merge.REPOSITORY}/pulls/{pr['number']}")
+        if current["state"] != "open" or current["head"]["sha"] != pr["head"]["sha"]:
+            print("PR changed; waiting for feedback on its new head.")
+            return
+        merge.api(f"repos/{merge.REPOSITORY}/issues/{pr['number']}/comments", method="POST", token_name="GH_TOKEN", data={
+            "body": f"HERDR_REPAIR_ATTEMPT: round={round_number} head={pr['head']['sha']} source={run['id']} run={os.environ['GITHUB_RUN_ID']}",
+        })
         folder = Path("artifacts/repair-input")
         folder.mkdir(parents=True, exist_ok=True)
         (folder / "feedback.md").write_text(notes)

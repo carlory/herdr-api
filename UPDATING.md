@@ -23,6 +23,9 @@ It then updates wire types, metadata, tests, and documentation and runs Linux
 Schema parity and real event integration tests before opening a draft PR.
 The author includes `HERDR_ADAPTATION_STATUS: READY` only after local checks
 pass and no blocker remains. A trusted handoff job verifies cross-platform CI
+on the current head and base. The author marker is only a request to start
+independent review; it never authorizes merging, tagging, or publication.
+After a base update, fresh CI is still required before handoff. The job then
 and marks the draft **Ready for review**. Incomplete adaptations stay draft;
 the reviewer never starts on drafts.
 The PR runs the normal Linux, macOS, and Windows CI. An independent
@@ -36,7 +39,10 @@ merges it only after both CI and this review check pass on its current head/base
 A blocked review or CI failure returns current findings to `Repair Herdr
 adaptation`, another author-agent turn on the same PR. Fixes trigger fresh CI
 and review on the new head. The reviewer cannot edit code. After five repair
-rounds the PR stays open with findings instead of entering an unbounded loop.
+attempts the PR stays open with findings instead of entering an unbounded loop.
+The trusted preparation job reserves each attempt in a bot-authored PR comment
+before inference, so failed or unpushed repairs also consume the limit. Workflow
+concurrency serializes reservations and duplicate feedback cannot reserve twice.
 Incomplete review runs and release failures receive up to three retries.
 
 The merge workflow runs only trusted code from `main`; it never checks out or
@@ -51,6 +57,7 @@ including merges by administrators, from a base change racing this verification.
 Ordinary PRs and forks are not automatically merged. The AI agents cannot merge,
 tag, or publish. Trusted deterministic jobs own those transitions. A tag requires
 a merged adaptation with a successful exact-head review, passing current-main CI,
+and main equal to that adaptation's exact merge commit,
 and configured publication authentication. Existing tags are never moved. The
 release workflow verifies all platforms, compares the packaged candidate, publishes
 crates.io, confirms its checksum, and only then completes the GitHub Release.
@@ -141,7 +148,9 @@ python3 scripts/configure_publication.py
 
 The hidden-input helper stores `CARGO_REGISTRY_TOKEN` in that fixed environment,
 without local persistence, command arguments, or printed credential material.
-The tag job receives only a boolean indicating whether the secret exists. Only
+An isolated authentication-check job has no checkout or repository-write credential
+and emits only a boolean. The tag job has no publication environment and receives
+only that boolean indicating whether the secret exists. Only
 the release publish step receives the registry token. Missing credentials block
 tag creation rather than presenting an unpublished tag as a finished release.
 

@@ -16,10 +16,14 @@ def main():
             if not merge.adaptation_tag(pr):
                 continue
             reviews = merge.pages(f"repos/{merge.REPOSITORY}/pulls/{pr['number']}/reviews")
-            if any(item["user"]["login"] == "github-actions[bot]" and
-                   re.search(rf"HERDR_REVIEW: (APPROVED|BLOCKED) head=[a-f0-9]{{40}} base=[a-f0-9]{{40}} run={run['id']}\b", item.get("body") or "")
-                   for item in reviews):
-                print("Reviewer reached a decision; the author repair workflow handles blockers.")
+            decisions = [match[1] for item in reviews if item["user"]["login"] == "github-actions[bot]"
+                         and (match := re.search(rf"HERDR_REVIEW: (APPROVED|BLOCKED) head=[a-f0-9]{{40}} base=[a-f0-9]{{40}} run={run['id']}\b", item.get("body") or ""))]
+            if "BLOCKED" in decisions:
+                print("The author repair workflow handles the blocking review.")
+                return
+            if "APPROVED" in decisions:
+                merge.api(f"repos/{merge.REPOSITORY}/actions/runs/{run['id']}/rerun-failed-jobs", method="POST", token_name="GH_TOKEN")
+                print("Retrying failed review infrastructure after an approved decision.")
                 return
         path = f"repos/{merge.REPOSITORY}/actions/runs/{run['id']}/rerun"
     elif run["path"] == ".github/workflows/release.yml" and run["event"] == "push":

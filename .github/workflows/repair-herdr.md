@@ -59,6 +59,10 @@ safe-outputs:
     github-token: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
 jobs:
   prepare:
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'failure' &&

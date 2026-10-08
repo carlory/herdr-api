@@ -8,12 +8,9 @@ import merge_adaptation as merge
 
 
 def reviewed_merge(pr, tag, commit):
-    if not pr.get("merged_at") or not pr.get("merge_commit_sha") or merge.adaptation_tag(dict(pr, state="open")) != tag:
+    if not pr.get("merged_at") or pr.get("merge_commit_sha") != commit or merge.adaptation_tag(dict(pr, state="open")) != tag:
         return False
     if not merge.verify_origin(pr):
-        return False
-    comparison = merge.api(f"repos/{merge.REPOSITORY}/compare/{pr['merge_commit_sha']}...{commit}")
-    if comparison["status"] not in ("ahead", "identical"):
         return False
     reviews = merge.pages(f"repos/{merge.REPOSITORY}/pulls/{pr['number']}/reviews")
     for review in sorted(reviews, key=lambda item: item["id"], reverse=True):

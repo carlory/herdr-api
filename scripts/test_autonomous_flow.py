@@ -43,6 +43,31 @@ class AutonomousTests(unittest.TestCase):
             self.assertIn("Fix default", repair_adaptation.feedback(pr, review_run))
             review["user"]["login"] = "someone"
             self.assertIsNone(repair_adaptation.feedback(pr, review_run))
+            review["user"]["login"] = "github-actions[bot]"
+            review_run["id"] = 30
+            self.assertIsNone(repair_adaptation.feedback(pr, review_run))
+
+    def test_failed_or_unpushed_repairs_still_count_toward_limit(self):
+        pr = pull_request()
+        run = {"id": 300, "status": "completed"}
+        claims = [{"user": {"login": "github-actions[bot]"},
+                   "body": f"HERDR_REPAIR_ATTEMPT: round={number} head=previous source={number} run={number}"}
+                  for number in range(1, 6)]
+        with patch.dict(os.environ, {"TRIGGER_RUN_ID": "300"}), \
+                patch.object(repair_adaptation, "outputs"), \
+                patch.object(repair_adaptation, "feedback", return_value="blocking finding"), \
+                patch.object(repair_adaptation.merge, "api", return_value=run) as api, \
+                patch.object(repair_adaptation.merge, "pages", side_effect=[[pr], claims]), patch("builtins.print"):
+            repair_adaptation.main()
+            self.assertEqual(api.call_count, 1)
+
+    def test_tag_does_not_release_later_unrelated_main_commits(self):
+        pr = pull_request()
+        pr.update(merged_at="2026-10-08", merge_commit_sha="reviewed-merge")
+        with patch.object(tag_adaptation.merge, "verify_origin", return_value=True), \
+                patch.object(tag_adaptation.merge, "pages", return_value=[]) as pages:
+            self.assertFalse(tag_adaptation.reviewed_merge(pr, "v0.9.3", "later-main"))
+            pages.assert_not_called()
 
     def test_publication_token_is_only_sent_through_stdin_to_the_release_environment(self):
         token = "cio_fixture_not_a_real_token"
