@@ -57,17 +57,18 @@ so the repository's default GITHUB_TOKEN remains read-only and its Actions PR
 approval setting does not need to be enabled. No approval or merge safe output
 is configured.
 
-Open [Create the adaptation token](https://github.com/settings/personal-access-tokens/new?name=herdr-api-adaptation&target_name=carlory&expires_in=90&copilot_requests=read&contents=write&pull_requests=write)
+Open [Create the adaptation token](https://github.com/settings/personal-access-tokens/new?name=herdr-api-adaptation&target_name=carlory&expires_in=none&copilot_requests=read&contents=write&pull_requests=write)
 in your signed-in GitHub account. Verify these settings:
 
 - Resource owner: `carlory`, with an active Copilot subscription.
+- Expiration: **No expiration**.
 - Repository access: **Only select repositories > herdr-api**.
 - Account permissions: **Copilot Requests > Read**.
 - Repository permissions: **Contents > Read and write**, **Pull requests > Read and write**.
 
 The URL prefills permissions; verify all settings before generating the token.
-It expires after 90 days and must be renewed. Existing broad CLI credentials
-are not copied to the repository.
+The token has no expiration date. Existing broad CLI credentials are not
+copied to the repository.
 Tokens must never be pasted into a PR, issue, or chat message.
 
 After generating it, run this command in a local terminal:
