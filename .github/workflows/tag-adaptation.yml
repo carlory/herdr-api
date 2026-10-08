@@ -13,25 +13,7 @@ concurrency:
   group: tag-herdr-adaptation
   cancel-in-progress: false
 jobs:
-  publication-auth:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.event == 'push' &&
-       github.event.workflow_run.head_repository.full_name == github.repository)
-    runs-on: ubuntu-latest
-    environment: crates-io
-    permissions: {}
-    outputs:
-      configured: ${{ steps.auth.outputs.configured }}
-    steps:
-      # No checkout, repository write token, or registry-token environment variable.
-      - id: auth
-        env:
-          CONFIGURED: ${{ secrets.CARGO_REGISTRY_TOKEN != '' }}
-        run: echo "configured=$CONFIGURED" >> "$GITHUB_OUTPUT"
   tag:
-    needs: [publication-auth]
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
@@ -49,6 +31,5 @@ jobs:
       - env:
           GH_TOKEN: ${{ github.token }}
           MERGE_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
-          HAS_PUBLICATION_TOKEN: ${{ needs.publication-auth.outputs.configured }}
           CI_RUN_ID: ${{ github.event.workflow_run.id }}
         run: python scripts/tag_adaptation.py

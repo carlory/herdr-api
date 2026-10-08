@@ -59,20 +59,16 @@ jobs:
         with:
           name: protocol-ubuntu-latest
           path: artifacts/
-      - name: Rehearse crates.io publication without uploading
+      - name: Build and verify the release package
         env:
           CARGO_TARGET_DIR: ${{ runner.temp }}/herdr-api-package
         run: |
-          cargo publish --locked --dry-run
-          # publish --dry-run verifies a temporary archive; package persists it.
           cargo package --locked
       - name: Prepare package, schemas, provenance, notes, and checksums
         env:
           RELEASE_TAG: ${{ needs.preflight.outputs.tag }}
           PACKAGE_DIR: ${{ runner.temp }}/herdr-api-package/package
         run: python scripts/release.py prepare --tag "$RELEASE_TAG" --package-dir "$PACKAGE_DIR"
-      - name: Check registry availability and retry identity
-        run: python scripts/release.py registry --dist dist
       - uses: actions/upload-artifact@v7
         with:
           name: release-candidate
@@ -85,53 +81,12 @@ jobs:
         run: |
           echo "Validated $RELEASE_TAG at $GITHUB_SHA on all three platforms." >> "$GITHUB_STEP_SUMMARY"
           if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
-            echo 'Dry run complete. No tag, registry upload, or GitHub Release was created.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Dry run complete. No tag or GitHub Release was created.' >> "$GITHUB_STEP_SUMMARY"
           fi
-
-  crates-io:
-    if: github.event_name == 'push' && github.repository == 'carlory/herdr-api'
-    needs: candidate
-    runs-on: ubuntu-latest
-    environment: crates-io
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.12'
-      - uses: actions/download-artifact@v8
-        with:
-          name: release-candidate
-          path: dist/
-      - name: Confirm the remote tag still identifies the reviewed commit
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python scripts/release.py guard --dist dist
-      - name: Rebuild and match the reviewed candidate
-        env:
-          CARGO_TARGET_DIR: ${{ runner.temp }}/herdr-api-package
-        run: |
-          cargo package --locked
-          python scripts/release.py match-package --dist dist --package-dir "$CARGO_TARGET_DIR/package"
-      - name: Inspect existing registry version
-        id: registry
-        run: python scripts/release.py registry --dist dist
-      - name: Publish a new version
-        if: steps.registry.outputs.exists != 'true'
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-          CARGO_TARGET_DIR: ${{ runner.temp }}/herdr-api-package
-        run: |
-          if [[ -z "$CARGO_REGISTRY_TOKEN" ]]; then
-            echo 'Configure CARGO_REGISTRY_TOKEN in the crates-io environment before releasing.' >&2
-            exit 1
-          fi
-          cargo publish --locked
-      - name: Confirm the registry serves the exact candidate
-        run: python scripts/release.py registry --dist dist --wait 180
 
   github-release:
-    needs: crates-io
+    if: github.event_name == 'push' && github.repository == 'carlory/herdr-api'
+    needs: candidate
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -144,7 +99,7 @@ jobs:
         with:
           name: release-candidate
           path: dist/
-      - name: Complete GitHub Release after successful registry publication
+      - name: Publish the verified GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: python scripts/release.py github --dist dist

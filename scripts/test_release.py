@@ -25,7 +25,7 @@ def candidate(directory: Path) -> dict:
     prefix = "herdr-api-0.9.3"
     with tarfile.open(directory / f"{prefix}.crate", "w:gz") as archive:
         for name, content in {
-            "Cargo.toml": '[package]\nname = "herdr-api"\nversion = "0.9.3"\n',
+            "Cargo.toml": '[package]\nname = "herdr-api"\nversion = "0.9.3"\npublish = false\n',
             ".cargo_vcs_info.json": json.dumps({"git": {"sha1": identity["commit"]}}),
         }.items():
             data = content.encode()
@@ -34,7 +34,7 @@ def candidate(directory: Path) -> dict:
             archive.addfile(entry, io.BytesIO(data))
     for name, content in {
         "release.json": json.dumps(identity), "release-notes.md": "release notes\n",
-        "upstream.toml": 'version = "0.9.3"\n',
+        "upstream.toml": 'version = "0.9.3"\npublish = false\n',
         "upstream.schema.json": "{}", "extracted.schema.json": "{}",
     }.items():
         (directory / name).write_text(content, encoding="utf-8")
@@ -76,6 +76,13 @@ class ReleaseTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "PROTOCOL_VERSION"):
                 release.metadata(root, pinned["tag"])
 
+    def test_registry_publication_cannot_be_enabled_in_a_release(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "Cargo.toml").write_text('[package]\nname = "herdr-api"\nversion = "0.9.3"\npublish = true\n')
+            with self.assertRaisesRegex(RuntimeError, "registry publication must be disabled"):
+                release.metadata(root, "v0.9.3")
+
     def test_modified_or_unexpected_asset_fails_before_network(self):
         for kind in ["modified", "extra", "incomplete", "traversal"]:
             with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory:
@@ -93,26 +100,11 @@ class ReleaseTests(unittest.TestCase):
                     (dist / "SHA256SUMS").write_text("0" * 64 + "  ../outside\n")
                 with patch.object(release, "request") as network:
                     with self.assertRaises(RuntimeError):
-                        release.registry(dist)
+                        release.github_release(dist)
                     network.assert_not_called()
 
-    def test_registry_retry_requires_identical_non_yanked_package(self):
-        with tempfile.TemporaryDirectory() as directory:
-            dist = Path(directory)
-            candidate(dist)
-            checksum = release.sha256(dist / "herdr-api-0.9.3.crate")
-            with patch.object(release, "request", return_value=None):
-                self.assertFalse(release.registry(dist))
-            with patch.object(release, "request", return_value={"version": {"checksum": checksum, "yanked": False}}):
-                self.assertTrue(release.registry(dist))
-            self.assertEqual(self.output_path.read_text(), "exists=false\nexists=true\n")
-            for digest, yanked in [("0" * 64, False), (checksum, True)]:
-                with patch.object(release, "request", return_value={"version": {"checksum": digest, "yanked": yanked}}):
-                    with self.assertRaises(RuntimeError):
-                        release.registry(dist)
-
-    def test_http_errors_are_not_mistaken_for_absent_versions(self):
-        url = "https://crates.io/api/v1/crates/herdr-api/0.9.3"
+    def test_http_errors_are_not_mistaken_for_absent_releases(self):
+        url = "https://api.github.com/repos/carlory/herdr-api/releases/tags/v0.9.3"
         for status in [401, 403, 429, 500, 503]:
             error = HTTPError(url, status, "error", {}, None)
             with patch.object(release, "urlopen", side_effect=error):
