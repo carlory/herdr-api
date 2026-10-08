@@ -19,9 +19,21 @@ supported binary asset digests from the release API, installs the local platform
 binary with digest verification, and exports Schema. It never builds Herdr.
 It then updates wire types, metadata, tests, and documentation and runs Linux
 Schema parity and real event integration tests before opening a draft PR.
-The PR runs the normal Linux, macOS, and Windows CI. Review its actual results
-before merging; a blocked adaptation may be delivered as a draft with explicit
-failures instead of being presented as complete.
+The PR runs the normal Linux, macOS, and Windows CI. The independent
+`Merge verified Herdr adaptation` workflow marks the draft ready and squash
+merges it after all required checks pass on its current head and base.
+A blocked adaptation stays open until its verification passes.
+
+The merge workflow runs only trusted code from `main`; it never checks out or
+executes the PR's code with a write token. It verifies the originating successful
+`Adapt Herdr` run, same-repository `adapt-herdr-v*` branch, `main` target, allowed
+file paths, a newer stable pinned version, and all four named CI jobs. Failed,
+skipped, missing, or stale checks do not authorize a merge. A changed main branch
+is merged into the PR first, triggering fresh CI. The final merge request locks
+the expected PR head SHA. Required, up-to-date branch checks protect `main`,
+including merges by administrators, from a base change racing this verification.
+Ordinary PRs and forks are not automatically merged. No automatic approval,
+tag creation, GitHub Release, or package publication is configured.
 
 The manifest preserves the existing extraction boundary. Changes to workflows,
 agent instructions, release gates, and the detector/staging scripts are excluded
@@ -54,8 +66,10 @@ skipped, with a warning that adaptation needs credentials. A missing credential
 does not cause a release to be considered adapted. Actual inference and PR
 creation require valid credentials. The PR uses the dedicated PAT's identity,
 so the repository's default GITHUB_TOKEN remains read-only and its Actions PR
-approval setting does not need to be enabled. No approval or merge safe output
-is configured.
+approval setting does not need to be enabled. The independent merge workflow
+also uses this existing dedicated PAT for marking ready, branch updates, and
+merging; no additional token or permissions are needed. The AI agent has no
+merge safe output.
 
 Open [Create the adaptation token](https://github.com/settings/personal-access-tokens/new?name=herdr-api-adaptation&target_name=carlory&expires_in=none&user_copilot_requests=read&contents=write&pull_requests=write)
 in your signed-in GitHub account. Verify these settings:
@@ -107,7 +121,18 @@ For an end-to-end upgrade test, keep the current implementation in a Git branch,
 set `main` to a verified older mirror (for example v0.9.2), and run the workflow.
 The detector should select v0.9.3. The draft PR and its CI then demonstrate the
 upgrade path. Keep any test tag out of the release workflow; this test requires
-no tag creation. No automatic merge is configured.
+no tag creation. Successful adaptation PRs now merge automatically into `main`.
+
+To check an existing adaptation PR against its latest CI run:
+
+```sh
+gh workflow run merge-adaptation.yml --repo carlory/herdr-api --ref main -f pull_request=3
+```
+
+`main` requires **Validate generated agentic workflow**, **Check (ubuntu-latest)**,
+**Check (macos-latest)**, and **Check (windows-latest)**, with up-to-date branches
+and enforcement for administrators. Future maintenance changes to `main` must
+also go through a PR with these checks; direct pushes are blocked.
 
 Authoritative inputs can also be staged locally:
 

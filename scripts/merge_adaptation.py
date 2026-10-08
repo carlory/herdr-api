@@ -1,0 +1,165 @@
+#!/usr/bin/env python3
+"""Merge workflow-created adaptations only after CI on their current head/base."""
+
+import base64
+import fnmatch
+import json
+import os
+from pathlib import PurePosixPath
+import re
+import tomllib
+from urllib.error import HTTPError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
+
+REPOSITORY = "carlory/herdr-api"
+REQUIRED_JOBS = {
+    "Validate generated agentic workflow",
+    "Check (ubuntu-latest)", "Check (macos-latest)", "Check (windows-latest)",
+}
+ALLOWED_FILES = (
+    "src/**", "tests/**", "examples/**", "Cargo.toml", "Cargo.lock",
+    "upstream.toml", "README.md", "EXTRACTION.md", "RELEASING.md", "NOTICE",
+    "scripts/install_herdr.py", "scripts/check_release.py",
+    "scripts/test_install_herdr.py", "scripts/test_release.py",
+)
+
+
+def api(path, *, method="GET", data=None):
+    token = os.environ["GH_TOKEN" if method == "GET" else "MERGE_TOKEN"]
+    if not token:
+        raise RuntimeError("required automation credential is missing")
+    headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
+    body = None if data is None else json.dumps(data).encode()
+    request = Request("https://api.github.com/" + path, data=body, headers=headers, method=method)
+    try:
+        with urlopen(request, timeout=60) as response:
+            result = json.load(response)
+    except HTTPError as error:
+        # Response bodies can contain credential material. Report only status.
+        try:
+            raise RuntimeError(f"GitHub API HTTP {error.code}; merge was not confirmed") from None
+        finally:
+            error.close()
+    if isinstance(result, dict) and result.get("errors"):
+        raise RuntimeError("GitHub GraphQL operation failed; merge was not confirmed")
+    return result
+
+
+def pages(path, key=None):
+    items = []
+    for page in range(1, 101):
+        response = api(f"{path}{'&' if '?' in path else '?'}per_page=100&page={page}")
+        batch = response[key] if key else response
+        items.extend(batch)
+        if len(batch) < 100:
+            return items
+    raise RuntimeError("pagination limit reached; refusing incomplete verification")
+
+
+def adaptation_tag(pr):
+    if (pr["state"] != "open" or pr["base"]["ref"] != "main"
+            or pr["base"]["repo"]["full_name"] != REPOSITORY
+            or not pr["head"].get("repo")
+            or pr["head"]["repo"]["full_name"] != REPOSITORY):
+        return None
+    match = re.fullmatch(r"adapt-herdr-(v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))(?:-[a-f0-9]+)?", pr["head"]["ref"])
+    if not match or not pr["title"].startswith("Adapt Herdr: "):
+        return None
+    body = pr.get("body") or ""
+    if "<!-- gh-aw-workflow-id: adapt-herdr -->" not in body:
+        return None
+    return match[1]
+
+
+def ci_passed(run, jobs, head):
+    return (run["path"] == ".github/workflows/ci.yml" and run["event"] == "pull_request"
+            and run["status"] == "completed" and run["conclusion"] == "success"
+            and run["head_sha"] == head and REQUIRED_JOBS.issubset({job["name"] for job in jobs})
+            and all(job["status"] == "completed" and job["conclusion"] == "success" for job in jobs))
+
+
+def verify_origin(pr):
+    match = re.search(r"<!-- gh-aw-agentic-workflow: Adapt Herdr, [^\n]*?\bid: (\d+),", pr["body"])
+    if not match:
+        return False
+    run = api(f"repos/{REPOSITORY}/actions/runs/{match[1]}")
+    return (run["path"] == ".github/workflows/adapt-herdr.lock.yml"
+            and run["status"] == "completed" and run["conclusion"] == "success")
+
+
+def metadata(ref):
+    result = api(f"repos/{REPOSITORY}/contents/upstream.toml?{urlencode({'ref': ref})}")
+    return tomllib.loads(base64.b64decode(result["content"]).decode())
+
+
+def merge(pr, run):
+    tag = adaptation_tag(pr)
+    if not tag or not verify_origin(pr):
+        print("Skipped: PR is not a workflow-created Herdr adaptation.")
+        return
+    head = pr["head"]["sha"]
+    jobs = pages(f"repos/{REPOSITORY}/actions/runs/{run['id']}/jobs", "jobs")
+    if not ci_passed(run, jobs, head):
+        print("Skipped: all required CI jobs must pass on the current PR head.")
+        return
+    files = pages(f"repos/{REPOSITORY}/pulls/{pr['number']}/files")
+    for file in files:
+        for path in (file["filename"], file.get("previous_filename", file["filename"])):
+            protected = {".github", ".agents", ".codex", "AGENTS.md", "CLAUDE.md", "CHANGELOG.md"}
+            if protected.intersection(PurePosixPath(path).parts) or not any(fnmatch.fnmatchcase(path, pattern) for pattern in ALLOWED_FILES):
+                raise RuntimeError(f"adaptation contains a protected path: {path}")
+    main = api(f"repos/{REPOSITORY}/git/ref/heads/main")["object"]["sha"]
+    tested = next((item for item in run["pull_requests"] if item["number"] == pr["number"]), None)
+    if not tested or tested["head"]["sha"] != head:
+        print("Skipped: CI has no matching PR provenance.")
+        return
+    if tested["base"]["sha"] != main:
+        api(f"repos/{REPOSITORY}/pulls/{pr['number']}/update-branch", method="PUT", data={"expected_head_sha": head})
+        print("Updated PR with current main; waiting for fresh CI.")
+        return
+    target, baseline = metadata(head), metadata(main)
+    def numeric(value):
+        return tuple(int(part) for part in value.removeprefix("v").split("."))
+    if target["tag"] != tag or target["version"] != tag[1:] or numeric(tag) <= numeric(baseline["tag"]):
+        raise RuntimeError("adaptation must advance the pinned stable Herdr version")
+    # Recheck after API reads; the merge endpoint also atomically checks the head.
+    current = api(f"repos/{REPOSITORY}/pulls/{pr['number']}")
+    if current["state"] != "open" or current["head"]["sha"] != head or current["base"]["sha"] != main:
+        print("Skipped: PR or main changed during verification.")
+        return
+    if current["draft"]:
+        api("graphql", method="POST", data={
+            "query": "mutation($id:ID!){markPullRequestReadyForReview(input:{pullRequestId:$id}){pullRequest{id}}}",
+            "variables": {"id": current["node_id"]},
+        })
+    result = api(f"repos/{REPOSITORY}/pulls/{pr['number']}/merge", method="PUT", data={
+        "sha": head, "merge_method": "squash", "commit_title": f"Adapt Herdr {tag} (#{pr['number']})",
+        "commit_message": "Verified protocol adaptation. No tag or package publication.",
+    })
+    if not result.get("merged"):
+        raise RuntimeError("GitHub declined the merge")
+    print(f"Merged verified adaptation PR #{pr['number']}: {result['sha']}")
+
+
+def main():
+    if number := os.environ.get("REQUESTED_PR"):
+        pr = api(f"repos/{REPOSITORY}/pulls/{int(number)}")
+        if not adaptation_tag(pr):
+            print("Skipped: ineligible PR.")
+            return
+        query = urlencode({"branch": pr["head"]["ref"], "event": "pull_request"})
+        runs = pages(f"repos/{REPOSITORY}/actions/workflows/ci.yml/runs?{query}", "workflow_runs")
+        matching = [run for run in runs if run["head_sha"] == pr["head"]["sha"]]
+        if not matching:
+            print("Skipped: current PR head has no CI run.")
+            return
+        merge(pr, max(matching, key=lambda run: run["id"]))
+    else:
+        run = api(f"repos/{REPOSITORY}/actions/runs/{int(os.environ['CI_RUN_ID'])}")
+        for item in run["pull_requests"]:
+            merge(api(f"repos/{REPOSITORY}/pulls/{item['number']}"), run)
+
+
+if __name__ == "__main__":
+    main()

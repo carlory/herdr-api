@@ -1,0 +1,46 @@
+name: Merge verified Herdr adaptation
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      pull_request:
+        description: 'Existing adaptation PR to check against its latest CI run'
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: merge-herdr-adaptation
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'pull_request' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    steps:
+      # Privileged automation only runs trusted code from the default branch.
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Verify CI, mark ready, and squash merge the current PR head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MERGE_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
+          CI_RUN_ID: ${{ github.event.workflow_run.id }}
+          REQUESTED_PR: ${{ inputs.pull_request }}
+        run: python scripts/merge_adaptation.py
